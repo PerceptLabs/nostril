@@ -1,4 +1,4 @@
-import Buffer from 'buffer';
+import { Buffer } from 'buffer';
 
 /**
  * Polyfill for Buffer in browser environment
@@ -7,15 +7,15 @@ import Buffer from 'buffer';
  * This polyfill makes the buffer package's Buffer available globally.
  */
 if (!globalThis.Buffer) {
-  globalThis.Buffer = Buffer.Buffer;
+  globalThis.Buffer = Buffer;
 }
 
 /**
  * Polyfill for AbortSignal.any()
- * 
+ *
  * AbortSignal.any() creates an AbortSignal that will be aborted when any of the
  * provided signals are aborted. This is useful for combining multiple abort signals.
- * 
+ *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static
  */
 
@@ -69,10 +69,10 @@ if (!AbortSignal.any) {
 
 /**
  * Polyfill for AbortSignal.timeout()
- * 
+ *
  * AbortSignal.timeout() creates an AbortSignal that will be aborted after a
  * specified number of milliseconds.
- * 
+ *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
  */
 
@@ -80,11 +80,11 @@ if (!AbortSignal.any) {
 if (!AbortSignal.timeout) {
   AbortSignal.timeout = function(milliseconds: number): AbortSignal {
     const controller = new AbortController();
-    
+
     setTimeout(() => {
       controller.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
     }, milliseconds);
-    
+
     return controller.signal;
   };
 }
