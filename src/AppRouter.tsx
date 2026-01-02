@@ -11,6 +11,8 @@ import { SearchPage } from "./pages/Search";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
+  console.log("AppRouter rendering, pathname:", window.location.pathname);
+
   return (
     <BrowserRouter>
       <ScrollToTop />

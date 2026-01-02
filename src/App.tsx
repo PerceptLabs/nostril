@@ -45,7 +45,7 @@ const defaultConfig: AppConfig = {
 
 export function App() {
   console.log("App component rendering...");
-  
+
   // Use DOM manipulation since useEffect has issues in this environment
   setTimeout(() => {
     // Add a test element to confirm app is loaded
@@ -54,15 +54,47 @@ export function App() {
     testElement.textContent = '✅ Nostril Loaded';
     testElement.style.cssText = 'position: fixed; bottom: 5px; right: 5px; background: #10b981; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; z-index: 999; pointer-events: none;';
     document.body.appendChild(testElement);
-    
+
     console.log("🎉 NOSTRIL APP LOADED SUCCESSFULLY!");
     console.log("The app is working correctly!");
     console.log("Check your browser's developer tools Elements tab to see the rendered DOM.");
     console.log("The preview might not display properly but the app is functional!");
   }, 100); // Small delay to ensure DOM is ready
-  
+
   return (
-    <UnheadProvider head={head}>
+    <>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        background: '#ff0000',
+        color: '#ffffff',
+        padding: '15px 20px',
+        zIndex: 999999,
+        fontSize: '24px',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+      }}>
+        🔴🔴🔴 APP RENDERING - IF YOU SEE THIS, REACT IS WORKING! 🔴🔴🔴
+      </div>
+      <div style={{
+        position: 'fixed',
+        top: 60,
+        left: 0,
+        right: 0,
+        background: '#00ff00',
+        color: '#000000',
+        padding: '15px 20px',
+        zIndex: 999998,
+        fontSize: '20px',
+        fontWeight: 'bold',
+        textAlign: 'center'
+      }}>
+        🟢🟢🟢 NOSTRIL IS LOADING - CHECK CONSOLE FOR DETAILS 🟢🟢🟢
+      </div>
+      <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>

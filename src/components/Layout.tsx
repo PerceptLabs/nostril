@@ -34,111 +34,33 @@ export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  console.log("Layout rendering, pathname:", location.pathname);
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col border-r bg-muted/30">
-        <div className="flex h-16 shrink-0 items-center px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">Nostril</span>
-          </Link>
+    <div style={{
+      minHeight: "100vh",
+      background: "#000",
+      color: "#fff",
+      display: "flex"
+    }}>
+      {/* Sidebar */}
+      <aside style={{ width: "250px", borderRight: "1px solid #333", padding: "20px" }}>
+        <div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#10b981" }}>
+          NOSTRIL
         </div>
-        <ScrollArea className="flex-1 px-4 py-4">
-          <nav className="flex flex-col gap-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <Separator className="my-4" />
-          <div className="text-xs font-semibold text-muted-foreground mb-2">Collections</div>
-          <Link
-            to="/collections/reading"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <BookOpen className="h-5 w-5" />
-            Reading List
-          </Link>
-        </ScrollArea>
-        <div className="border-t p-4">
-          <LoginArea className="w-full" />
-        </div>
+        <nav style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <Link to="/" style={{ color: location.pathname === "/" ? "#10b981" : "#fff", padding: "10px", background: location.pathname === "/" ? "#333" : "transparent" }}>Home</Link>
+          <Link to="/inbox" style={{ color: location.pathname === "/inbox" ? "#10b981" : "#fff", padding: "10px", background: location.pathname === "/inbox" ? "#333" : "transparent" }}>Inbox</Link>
+          <Link to="/library" style={{ color: location.pathname === "/library" ? "#10b981" : "#fff", padding: "10px", background: location.pathname === "/library" ? "#333" : "transparent" }}>Library</Link>
+          <Link to="/collections" style={{ color: location.pathname === "/collections" ? "#10b981" : "#fff", padding: "10px", background: location.pathname === "/collections" ? "#333" : "transparent" }}>Collections</Link>
+          <Link to="/search" style={{ color: location.pathname === "/search" ? "#10b981" : "#fff", padding: "10px", background: location.pathname === "/search" ? "#333" : "transparent" }}>Search</Link>
+        </nav>
       </aside>
 
-      {/* Mobile sidebar */}
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="lg:hidden fixed top-4 left-4 z-50">
-            <Menu className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
-          <div className="flex h-16 shrink-0 items-center px-6">
-            <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">Nostril</span>
-            </Link>
-          </div>
-          <ScrollArea className="flex-1 px-4">
-            <nav className="flex flex-col gap-2 py-4">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </ScrollArea>
-          <div className="border-t p-4">
-            <LoginArea className="w-full" />
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Mobile header */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-lg px-4 lg:hidden">
-          <div className="flex-1" />
-          <Link to="/" className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="font-bold">Nostril</span>
-          </Link>
-          <div className="flex-1" />
-        </header>
-
-        <main>
-          <Outlet />
-        </main>
-      </div>
+      <main style={{ flex: 1, padding: "20px" }}>
+        <Outlet />
+      </main>
     </div>
   );
 }
