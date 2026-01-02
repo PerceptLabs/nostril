@@ -1,54 +1,51 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function Index() {
-  console.log("Index page rendering!", new Date().toISOString());
+  const navigate = useNavigate();
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
+    <div style={{
+      minHeight: "100vh",
       background: "#0a0a0a",
-      color: "#ffffff",
       display: "flex",
       alignItems: "center",
       justifyContent: "center"
     }}>
-      <div style={{ textAlign: "center", padding: "20px" }}>
-        <h1 
-          style={{ 
-            fontSize: "64px", 
-            fontWeight: "bold",
-            marginBottom: "20px",
-            color: "#10b981" 
-          }}
-        >
-          NOSTRIL APP
-        </h1>
-        <p 
-          style={{ 
-            fontSize: "24px", 
-            marginBottom: "40px",
-            color: "#ffffff"
-          }}
-        >
-          If you see this, React is working!
-        </p>
-        <a 
-          href="/library"
-          style={{
-            display: "inline-block",
-            padding: "16px 32px",
-            backgroundColor: "#10b981",
-            color: "#ffffff",
-            textDecoration: "none",
-            borderRadius: "8px",
-            fontSize: "18px",
-            fontWeight: "600"
-          }}
-        >
-          Go to Library
-        </a>
-      </div>
+      <h1
+        style={{
+          fontSize: "64px",
+          color: "#10b981",
+          fontWeight: "bold",
+          marginBottom: "20px"
+        }}
+      >
+        INDEX PAGE - ROUTING IS WORKING!
+      </h1>
+      <p
+        style={{
+          fontSize: "24px",
+          color: "#ffffff",
+          marginBottom: "40px"
+        }}
+      >
+        AppRouter and Layout are connected.
+      </p>
+      <button
+        onClick={() => navigate("/library")}
+        style={{
+          background: "#10b981",
+          color: "#ffffff",
+          border: "2px solid #10b981",
+          padding: "12px 24px",
+          borderRadius: "8px",
+          fontSize: "18px",
+          fontWeight: "bold",
+          cursor: "pointer"
+        }}
+      >
+        Go to Library
+      </button>
     </div>
   );
 }
