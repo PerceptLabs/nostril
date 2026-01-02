@@ -11,16 +11,6 @@ import { SearchPage } from "./pages/Search";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
-  console.log("🔍 AppRouter START", new Date().toISOString());
-  console.log("Current pathname:", window.location.pathname);
-
-  try {
-    // Force a re-render by updating a dummy state in a test component
-    window.localStorage.setItem('debug-router-render', new Date().toISOString());
-  } catch (error) {
-    console.error("Error in AppRouter:", error);
-  }
-
   return (
     <BrowserRouter>
       <ScrollToTop />
