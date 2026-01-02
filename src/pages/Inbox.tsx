@@ -51,9 +51,8 @@ export function Inbox() {
   );
 
   const handleQuickTag = useCallback(
-    async (saveId: string, tag: string) => {
-      // This would update the save with a tag
-      console.log("Quick tag", saveId, tag);
+    async (_saveId: string, _tag: string) => {
+      // TODO: Implement quick tag functionality
     },
     []
   );

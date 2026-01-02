@@ -39,7 +39,6 @@ export function NostrSync() {
               }));
 
             if (fetchedRelays.length > 0) {
-              console.log('Syncing relay list from Nostr:', fetchedRelays);
               updateConfig((current) => ({
                 ...current,
                 relayMetadata: {
@@ -50,8 +49,8 @@ export function NostrSync() {
             }
           }
         }
-      } catch (error) {
-        console.error('Failed to sync relays from Nostr:', error);
+      } catch {
+        // Silently fail - relay sync is not critical
       }
     };
 

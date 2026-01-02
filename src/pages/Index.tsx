@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useSaves } from "@/hooks/useSaves";
 import { QuickNote } from "@/components/saves/QuickNote";
@@ -29,7 +29,7 @@ export default function Index(_?: IndexProps) {
 
   const recentSaves = saves || [];
   const linkCount = recentSaves.filter(s => s.contentType === 'link').length;
-  const noteCount = recentS.filter(s => s.contentType === 'note').length;
+  const noteCount = recentSaves.filter(s => s.contentType === 'note').length;
   const otherCount = recentSaves.length - linkCount - noteCount;
 
   return (
@@ -64,8 +64,8 @@ export default function Index(_?: IndexProps) {
               {/* Quick capture */}
               <div className="max-w-md mx-auto pt-6 w-full">
                 <QuickNote
-                  onSubmit={(content, tags) => {
-                    console.log("Quick capture:", content, tags);
+                  onSubmit={() => {
+                    // TODO: Implement quick capture functionality
                   }}
                 />
               </div>
@@ -211,8 +211,8 @@ export default function Index(_?: IndexProps) {
       <CaptureForm
         open={showCaptureForm}
         onOpenChange={setShowCaptureForm}
-        onSubmit={(data) => {
-          console.log("Capture:", data);
+        onSubmit={() => {
+          // TODO: Implement capture functionality
           setShowCaptureForm(false);
         }}
       />

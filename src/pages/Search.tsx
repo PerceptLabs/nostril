@@ -215,9 +215,9 @@ export function SearchPage() {
                 key={save.id}
                 save={save}
                 viewMode="grid"
-                onEdit={(s) => console.log("Edit", s)}
-                onDelete={(s) => console.log("Delete", s)}
-                onShare={(s) => console.log("Share", s)}
+                onEdit={() => { /* TODO: Implement edit functionality */ }}
+                onDelete={() => { /* TODO: Implement delete functionality */ }}
+                onShare={() => { /* TODO: Implement share functionality */ }}
               />
             ))}
           </div>
