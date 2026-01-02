@@ -18,7 +18,7 @@ export function useSaves(filter?: SaveFilter) {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(15000)]);
 
       const kinds = [30078] as const;
-      const filters: Parameters<typeof nostr.query>[0] = [{ kinds, limit: 50 }];
+      const filters: Parameters<typeof nostr.query>[0] = [{ kinds, limit: filter?.limit ?? 50 }];
 
       // Add tag filter
       if (filter?.tags && filter.tags.length > 0) {
@@ -253,9 +253,9 @@ export function useAllTags() {
  * Hook to search saves for wikilink autocomplete
  */
 export function useWikilinkSearch(query: string) {
-  const { data: saves } = useSaves({ search: query, limit: 10 });
+  const { data: saves, isLoading } = useSaves({ search: query, limit: 10 });
 
-  return useMemo(() => {
+  const data = useMemo(() => {
     if (!query) return [];
     return (saves || []).map((s) => ({
       dTag: s.dTag,
@@ -263,4 +263,6 @@ export function useWikilinkSearch(query: string) {
       url: s.url,
     }));
   }, [saves, query]);
+
+  return { data, isLoading };
 }

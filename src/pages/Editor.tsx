@@ -19,7 +19,8 @@ import {
   Globe,
   Tag,
 } from "lucide-react";
-import { cn, formatDistanceToNow } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import type { ContentType, ParsedSave } from "@/lib/nostril";
 
 // Known route paths that should NOT be treated as save IDs

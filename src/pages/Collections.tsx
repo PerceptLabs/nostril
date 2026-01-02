@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useSaves } from "@/hooks/useSaves";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive">
-                <Trash className="h-4 w-4 mr-2" />
+                <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -213,7 +213,8 @@ export function Collections() {
   );
 }
 
-export function CollectionDetail({ id }: { id: string }) {
+export function CollectionDetail() {
+  const { id } = useParams<{ id: string }>();
   const collection = mockCollections.find((c) => c.id === id);
 
   if (!collection) {
