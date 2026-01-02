@@ -22,10 +22,19 @@ import {
 import { cn, formatDistanceToNow } from "@/lib/utils";
 import type { ContentType, ParsedSave } from "@/lib/nostril";
 
+// Known route paths that should NOT be treated as save IDs
+const KNOWN_PATHS = ["inbox", "library", "collections", "search", "settings", "about", "login", "signup"];
+
 export function Editor() {
   const { dTag } = useParams<{ dTag: string }>();
   const navigate = useNavigate();
-  const { user } = useCurrentUser();
+
+  // Redirect if this is a known route path, not a save ID
+  useEffect(() => {
+    if (dTag && KNOWN_PATHS.includes(dTag)) {
+      navigate(`/${dTag}`, { replace: true });
+    }
+  }, [dTag, navigate]);
 
   const { data: save, isLoading, error } = useSave(dTag);
   const { data: backlinks } = useBacklinks(dTag);

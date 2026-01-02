@@ -16,6 +16,7 @@ export function AppRouter() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
+        {/* Layout-wrapped routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Index />} />
           <Route path="inbox" element={<Inbox />} />
@@ -26,11 +27,14 @@ export function AppRouter() {
           <Route path="search" element={<SearchPage />} />
           <Route path="search/:query" element={<SearchPage />} />
         </Route>
+
         {/* Editor page with full-width layout */}
         <Route path="/:dTag" element={<Editor />} />
+
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
+        {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
