@@ -1,14 +1,24 @@
 import { nip19 } from 'nostr-tools';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import NotFound from './NotFound';
+
+// Known paths that should not be treated as NIP-19 identifiers
+const KNOWN_PATHS = ['', 'inbox', 'library', 'collections', 'search', 'settings', 'about', 'login', 'signup'];
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
 
+  // If no identifier, return NotFound
   if (!identifier) {
     return <NotFound />;
   }
 
+  // If it's a known path, redirect to the proper route
+  if (KNOWN_PATHS.includes(identifier)) {
+    return <Navigate to={`/${identifier}`} replace />;
+  }
+
+  // Try to decode as NIP-19 identifier
   let decoded;
   try {
     decoded = nip19.decode(identifier);
@@ -39,4 +49,4 @@ export function NIP19Page() {
     default:
       return <NotFound />;
   }
-} 
+}
