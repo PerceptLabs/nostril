@@ -15,9 +15,14 @@ import {
   Eye,
   Split,
   Edit2,
+  Link2,
+  Loader2,
+  Upload,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { ContentType } from "@/lib/nostril";
 
@@ -25,8 +30,10 @@ interface EditorToolbarProps {
   onInsert: (template: string) => void;
   viewMode: "edit" | "preview" | "split";
   onViewModeChange: (mode: "edit" | "preview" | "split") => void;
-  contentType: ContentType;
-  onContentTypeChange: (type: ContentType) => void;
+  contentType?: ContentType;
+  onContentTypeChange?: (type: ContentType) => void;
+  onImageUpload?: () => void;
+  isUploading?: boolean;
   className?: string;
 }
 
@@ -36,6 +43,8 @@ export function EditorToolbar({
   onViewModeChange,
   contentType,
   onContentTypeChange,
+  onImageUpload,
+  isUploading,
   className,
 }: EditorToolbarProps) {
   const insert = useCallback(
@@ -52,7 +61,7 @@ export function EditorToolbar({
     [onInsert]
   );
 
-  const tools: {
+  const formattingTools: {
     icon: React.ReactNode;
     label: string;
     action: () => void;
@@ -60,13 +69,43 @@ export function EditorToolbar({
   }[] = [
     { icon: <Bold className="h-4 w-4" />, label: "Bold", action: () => insert("**", "**"), shortcut: "⌘B" },
     { icon: <Italic className="h-4 w-4" />, label: "Italic", action: () => insert("*", "*"), shortcut: "⌘I" },
+    { icon: <Code className="h-4 w-4" />, label: "Inline Code", action: () => insert("`", "`") },
+  ];
+
+  const insertTools: {
+    icon: React.ReactNode;
+    label: string;
+    action: () => void;
+    shortcut?: string;
+    disabled?: boolean;
+  }[] = [
     { icon: <Link className="h-4 w-4" />, label: "Link", action: () => insert("[", "](url)") },
-    { icon: <Image className="h-4 w-4" />, label: "Image", action: () => insert("![alt](", ")") },
-    { icon: <Code className="h-4 w-4" />, label: "Code", action: () => insert("`", "`") },
+    {
+      icon: isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />,
+      label: "Upload Image",
+      action: () => onImageUpload?.(),
+      disabled: isUploading,
+    },
+    { icon: <Link2 className="h-4 w-4" />, label: "Wikilink", action: () => insertBlock("[[") },
+  ];
+
+  const blockTools: {
+    icon: React.ReactNode;
+    label: string;
+    action: () => void;
+  }[] = [
     { icon: <Quote className="h-4 w-4" />, label: "Quote", action: () => insertBlock("> ") },
     { icon: <List className="h-4 w-4" />, label: "Bullet List", action: () => insertBlock("- ") },
     { icon: <ListOrdered className="h-4 w-4" />, label: "Numbered List", action: () => insertBlock("1. ") },
     { icon: <CheckSquare className="h-4 w-4" />, label: "Task", action: () => insertBlock("- [ ] ") },
+    { icon: <Minus className="h-4 w-4" />, label: "Divider", action: () => insertBlock("\n---\n") },
+  ];
+
+  const headingTools: {
+    icon: React.ReactNode;
+    label: string;
+    action: () => void;
+  }[] = [
     { icon: <Heading1 className="h-4 w-4" />, label: "Heading 1", action: () => insertBlock("# ") },
     { icon: <Heading2 className="h-4 w-4" />, label: "Heading 2", action: () => insertBlock("## ") },
     { icon: <Heading3 className="h-4 w-4" />, label: "Heading 3", action: () => insertBlock("### ") },
@@ -80,9 +119,10 @@ export function EditorToolbar({
       )}
     >
       {/* Formatting tools */}
-      <div className="flex items-center gap-1 flex-wrap">
-        {tools.map((tool, i) => (
-          <Tooltip key={i}>
+      <div className="flex items-center gap-0.5 flex-wrap">
+        {/* Text formatting */}
+        {formattingTools.map((tool, i) => (
+          <Tooltip key={`format-${i}`}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
@@ -101,6 +141,64 @@ export function EditorToolbar({
                 )}
               </p>
             </TooltipContent>
+          </Tooltip>
+        ))}
+
+        <Separator orientation="vertical" className="mx-1 h-6" />
+
+        {/* Insert elements */}
+        {insertTools.map((tool, i) => (
+          <Tooltip key={`insert-${i}`}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={tool.action}
+                disabled={tool.disabled}
+                className="h-8 w-8 p-0"
+              >
+                {tool.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{tool.label}</TooltipContent>
+          </Tooltip>
+        ))}
+
+        <Separator orientation="vertical" className="mx-1 h-6" />
+
+        {/* Block elements */}
+        {blockTools.map((tool, i) => (
+          <Tooltip key={`block-${i}`}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={tool.action}
+                className="h-8 w-8 p-0"
+              >
+                {tool.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{tool.label}</TooltipContent>
+          </Tooltip>
+        ))}
+
+        <Separator orientation="vertical" className="mx-1 h-6" />
+
+        {/* Headings */}
+        {headingTools.map((tool, i) => (
+          <Tooltip key={`heading-${i}`}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={tool.action}
+                className="h-8 w-8 p-0"
+              >
+                {tool.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{tool.label}</TooltipContent>
           </Tooltip>
         ))}
       </div>

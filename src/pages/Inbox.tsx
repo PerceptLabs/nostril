@@ -15,7 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  Inbox,
+  Inbox as InboxIcon,
   Plus,
   Check,
   Archive,
@@ -65,7 +65,7 @@ export function Inbox() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
-                <Inbox className="h-5 w-5 text-primary" />
+                <InboxIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h1 className="text-xl font-bold">Inbox</h1>
@@ -89,7 +89,7 @@ export function Inbox() {
             <Tabs value={filterType} onValueChange={(v) => setFilterType(v as ContentType | "all")}>
               <TabsList>
                 <TabsTrigger value="all" className="gap-1">
-                  <Inbox className="h-4 w-4" />
+                  <InboxIcon className="h-4 w-4" />
                   All
                 </TabsTrigger>
                 <TabsTrigger value="link" className="gap-1">
@@ -115,7 +115,7 @@ export function Inbox() {
                 {!isLoading && inboxItems.length === 0 && (
                   <Card className="p-8 text-center">
                     <CardContent className="py-8">
-                      <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <InboxIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold mb-2">Inbox is empty</h3>
                       <p className="text-muted-foreground mb-4">
                         Add some content to start building your knowledge base
@@ -249,7 +249,7 @@ function InboxCard({
     <Card className="group overflow-hidden hover:shadow-md transition-all">
       <a href={`/${save.dTag}`} className="block">
         <div className="aspect-video bg-muted flex items-center justify-center">
-          <Inbox className="h-8 w-8 text-muted-foreground" />
+          <InboxIcon className="h-8 w-8 text-muted-foreground" />
         </div>
       </a>
       <CardContent className="p-4">

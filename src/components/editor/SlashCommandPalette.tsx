@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/command";
 import {
   Link,
+  Link2,
   Image,
   Tag,
   Quote,
@@ -14,7 +15,11 @@ import {
   FileText,
   Heading1,
   Heading2,
+  Heading3,
   List,
+  ListOrdered,
+  Code,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,32 +32,37 @@ interface SlashCommandPaletteProps {
 
 const commands = [
   {
-    group: "Basic",
+    group: "Basic Blocks",
     items: [
-      { id: "text", label: "Text paragraph", icon: FileText, description: "Add plain text" },
-      { id: "heading1", label: "Heading 1", icon: Heading1, description: "Big section heading" },
+      { id: "text", label: "Text", icon: FileText, description: "Plain text paragraph" },
+      { id: "heading1", label: "Heading 1", icon: Heading1, description: "Large section heading" },
       { id: "heading2", label: "Heading 2", icon: Heading2, description: "Medium section heading" },
+      { id: "heading3", label: "Heading 3", icon: Heading3, description: "Small section heading" },
     ],
   },
   {
-    group: "Media",
+    group: "Media & Links",
     items: [
-      { id: "link", label: "Link", icon: Link, description: "Add a link to a URL" },
-      { id: "image", label: "Image", icon: Image, description: "Upload or link an image" },
+      { id: "link", label: "Link", icon: Link, description: "External link to URL" },
+      { id: "wikilink", label: "Wikilink", icon: Link2, description: "Link to another save" },
+      { id: "image", label: "Image", icon: Image, description: "Upload an image" },
     ],
   },
   {
     group: "Lists",
     items: [
-      { id: "bullet", label: "Bullet list", icon: List, description: "Create a bulleted list" },
-      { id: "todo", label: "Task list", icon: CheckSquare, description: "Track tasks with checkboxes" },
+      { id: "bullet", label: "Bullet List", icon: List, description: "Unordered list" },
+      { id: "numbered", label: "Numbered List", icon: ListOrdered, description: "Ordered list" },
+      { id: "todo", label: "Task List", icon: CheckSquare, description: "Checkable tasks" },
     ],
   },
   {
-    group: "Content",
+    group: "Content Blocks",
     items: [
-      { id: "quote", label: "Quote", icon: Quote, description: "Highlight quoted text" },
-      { id: "tag", label: "Add tag", icon: Tag, description: "Add a tag to this note" },
+      { id: "quote", label: "Quote", icon: Quote, description: "Blockquote for citations" },
+      { id: "code", label: "Code Block", icon: Code, description: "Syntax highlighted code" },
+      { id: "divider", label: "Divider", icon: Minus, description: "Horizontal line separator" },
+      { id: "tag", label: "Tag", icon: Tag, description: "Add hashtag to note" },
     ],
   },
 ];

@@ -7,37 +7,33 @@ export type ContentType = "link" | "image" | "pdf" | "note";
 
 /**
  * Save event (kind: 30078) - captures URLs, images, PDFs, and notes
+ *
+ * Tags:
+ * - ["d", string] - unique identifier
+ * - ["r", string] - original URL
+ * - ["x", string] - SHA256 hash
+ * - ["blossom", string] - blossom server URL
+ * - ["t", string] - tags (repeatable)
+ * - ["title", string] - extracted title
+ * - ["description", string] - excerpt
+ * - ["image", string] - preview image URL
+ * - ["content-type", ContentType] - type of content
+ * - ["ref", string] - wikilink references (repeatable)
+ * - ["published-at", string] - human-readable date
  */
-export interface SaveEvent extends NostrEvent {
-  kind: 30078;
-  tags: [
-    ["d", string],
-    ["r", string]?,                    // original URL
-    ["x", string]?,                    // SHA256 hash
-    ["blossom", string]?,              // blossom server URL
-    ["t", string]?,                   // tags (repeatable)
-    ["title", string]?,               // extracted title
-    ["description", string]?,         // excerpt
-    ["image", string]?,               // preview image URL
-    ["content-type", ContentType]?,   // type of content
-    ["ref", string]?,                // wikilink references (repeatable)
-    ["published-at", string]?,        // human-readable date
-  ];
-}
+export const SAVE_KIND = 30078;
 
 /**
  * Annotation event (kind: 30079) - annotations on saves
+ *
+ * Tags:
+ * - ["d", string] - unique identifier
+ * - ["e", string] - parent save event ID
+ * - ["context", string] - quoted text
+ * - ["range", string] - character or page range
+ * - ["rect", string] - for image/PDF regions
  */
-export interface AnnotationEvent extends NostrEvent {
-  kind: 30079;
-  tags: [
-    ["d", string],
-    ["e", string],                    // parent save event ID
-    ["context", string]?,             // quoted text
-    ["range", string]?,               // character or page range
-    ["rect", string]?,               // for image/PDF regions
-  ];
-}
+export const ANNOTATION_KIND = 30079;
 
 /**
  * Tag metadata from NIP-51 list
