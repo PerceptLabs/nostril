@@ -64,84 +64,10 @@ const mockCollections: Collection[] = [
   },
 ];
 
-export function Collections() {
-  const [search, setSearch] = useState("");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-
-  const filteredCollections = mockCollections.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.description?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <FolderOpen className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Collections</h1>
-                <p className="text-sm text-muted-foreground">
-                  Organize your saves into NIP-51 lists
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Collection
-            </Button>
-          </div>
-
-          {/* Search */}
-          <div className="mt-4">
-            <Input
-              placeholder="Search collections..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-md"
-            />
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
-        {/* Collections grid */}
-        {filteredCollections.length === 0 ? (
-          <Card className="p-8 text-center">
-            <CardContent className="py-8">
-              <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No collections yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first collection to organize your saves
-              </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Collection
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCollections.map((collection) => (
-              <CollectionCard key={collection.id} collection={collection} />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
 function CollectionCard({ collection }: { collection: Collection }) {
   return (
     <Card className="group overflow-hidden hover:shadow-lg transition-all">
       <Link to={`/collections/${collection.id}`} className="block">
-        {/* Cover image or placeholder */}
         <div className="aspect-video bg-muted relative overflow-hidden">
           {collection.coverImage ? (
             <img
@@ -154,8 +80,6 @@ function CollectionCard({ collection }: { collection: Collection }) {
               <FolderOpen className="h-12 w-12 text-muted-foreground/30" />
             </div>
           )}
-
-          {/* Public/private indicator */}
           <div className="absolute top-2 right-2">
             {collection.isPublic ? (
               <div className="p-1.5 rounded-full bg-green-500/90 text-white">
@@ -169,7 +93,6 @@ function CollectionCard({ collection }: { collection: Collection }) {
           </div>
         </div>
       </Link>
-
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -184,7 +107,6 @@ function CollectionCard({ collection }: { collection: Collection }) {
               </p>
             )}
           </div>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -212,7 +134,6 @@ function CollectionCard({ collection }: { collection: Collection }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
         <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
           <span>{collection.saves} items</span>
           <span>•</span>
@@ -223,9 +144,75 @@ function CollectionCard({ collection }: { collection: Collection }) {
   );
 }
 
-/**
- * Collection detail page
- */
+export function Collections() {
+  const [search, setSearch] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  const filteredCollections = mockCollections.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <FolderOpen className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Collections</h1>
+                <p className="text-sm text-muted-foreground">
+                  Organize your saves into NIP-51 lists
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Collection
+            </Button>
+          </div>
+          <div className="mt-4">
+            <Input
+              placeholder="Search collections..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6">
+        {filteredCollections.length === 0 ? (
+          <Card className="p-8 text-center">
+            <CardContent className="py-8">
+              <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No collections yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first collection to organize your saves
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Collection
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCollections.map((collection) => (
+              <CollectionCard key={collection.id} collection={collection} />
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
 export function CollectionDetail({ id }: { id: string }) {
   const collection = mockCollections.find((c) => c.id === id);
 
@@ -278,8 +265,6 @@ export function CollectionDetail({ id }: { id: string }) {
 
       <main className="container mx-auto px-4 py-6">
         <p className="text-muted-foreground mb-6">{collection.description}</p>
-        
-        {/* Collection saves would go here */}
         <Card className="p-8 text-center">
           <CardContent className="py-8">
             <p className="text-muted-foreground">
@@ -291,3 +276,5 @@ export function CollectionDetail({ id }: { id: string }) {
     </div>
   );
 }
+
+export default Collections;

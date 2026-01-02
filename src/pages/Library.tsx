@@ -315,3 +315,5 @@ export function Library() {
     </div>
   );
 }
+
+export default Library;

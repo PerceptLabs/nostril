@@ -42,14 +42,14 @@ export function Index() {
               <Sparkles className="h-4 w-4" />
               Decentralized Read-Later for Nostr
             </div>
-            
+
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
               Capture. Organize.{" "}
               <span className="text-primary">Remember.</span>
             </h1>
-            
+
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Save links, images, PDFs, and notes as signed Nostr events. 
+              Save links, images, PDFs, and notes as signed Nostr events.
               Everything is portable, verifiable, and shareable with cryptographic attribution.
             </p>
 
@@ -283,3 +283,5 @@ export function Index() {
     </div>
   );
 }
+
+export default Index;

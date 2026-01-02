@@ -223,6 +223,8 @@ export function Inbox() {
   );
 }
 
+export default Inbox;
+
 /**
  * Inbox item with quick actions
  */
