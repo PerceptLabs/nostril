@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSave, useBacklinks, useUpdateSave, useAuthor } from "@/hooks/useSaves";
+import { useSave, useBacklinks, useUpdateSave } from "@/hooks/useSaves";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { NoteEditor } from "@/components/editor/NoteEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,7 @@ export function Editor() {
 
   const { data: save, isLoading, error } = useSave(dTag);
   const { data: backlinks } = useBacklinks(dTag);
-  const { data: author } = useAuthor(save?.author.pubkey);
+  const author = save?.author;
   const { updateSave, isPending: isSaving } = useUpdateSave();
 
   const [title, setTitle] = useState("");
@@ -247,23 +247,23 @@ export function Editor() {
               )}
 
               {/* Author */}
-              {author?.metadata && (
+              {author && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">Author</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-3">
-                      {author.metadata.picture && (
+                      {author.picture && (
                         <img
-                          src={author.metadata.picture}
+                          src={author.picture}
                           alt=""
                           className="w-10 h-10 rounded-full"
                         />
                       )}
                       <div>
                         <p className="font-medium">
-                          {author.metadata.display_name || author.metadata.name}
+                          {author.name || author.pubkey.slice(0, 12) + "..."}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDistanceToNow(save.publishedAt, { addSuffix: true })}

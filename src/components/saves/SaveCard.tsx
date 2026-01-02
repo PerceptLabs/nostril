@@ -23,7 +23,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, formatDistanceToNow } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import type { ParsedSave, ContentType } from "@/lib/nostril";
 
 interface SaveCardProps {
