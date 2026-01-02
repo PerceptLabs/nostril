@@ -16,12 +16,16 @@ if ('serviceWorker' in navigator) {
 
 const rootElement = document.getElementById("root");
 
+console.log("main.tsx executing");
+console.log("Document ready state:", document.readyState);
+console.log("Root element found:", !!rootElement);
+console.log("Root element HTML:", rootElement?.innerHTML);
+
 if (!rootElement) {
   console.error("Root element not found!");
   document.body.innerHTML = `
-    <div style="padding: 40px; background: #0a0a0a; color: #ef4444; min-height: 100vh;">
-      <h1 style="font-size: 24px; margin-bottom: 16px;">Error: Root element not found</h1>
-      <p>The root DOM element is missing. Please check your HTML file.</p>
+    <div style="position: fixed; inset: 0; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+      ERROR: Root element not found!
     </div>
   `;
 } else {
@@ -34,10 +38,9 @@ if (!rootElement) {
     console.log("App mounted successfully!");
   } catch (error) {
     console.error("Failed to mount app:", error);
-    rootElement.innerHTML = `
-      <div style="padding: 40px; background: #0a0a0a; color: #ef4444; min-height: 100vh;">
-        <h1 style="font-size: 24px; margin-bottom: 16px;">Failed to load Nostril</h1>
-        <pre style="background: #1a1a1a; padding: 16px; border-radius: 8px; overflow: auto; color: #fff;">${error instanceof Error ? error.message : String(error)}</pre>
+    document.body.innerHTML = `
+      <div style="position: fixed; inset: 0; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+        ERROR: ${error instanceof Error ? error.message : String(error)}
       </div>
     `;
   }
