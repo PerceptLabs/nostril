@@ -1,70 +1,69 @@
-# Nostril - Decentralized Read-Later & Knowledge Capture for Nostr
-
-[![Edit with Shakespeare](https://shakespeare.diy/badge.svg)](https://shakespeare.diy/clone?url=https%3A%2F%2Fgithub.com%2FPerceptLabs%2Fnostril)
+# Nostril
 
 A privacy-first, decentralized read-later and knowledge capture app built on Nostr. Save links, images, PDFs, and notes as cryptographically-signed events that are portable, verifiable, and shareable.
 
-## 🚀 What is Nostril?
+## Why Nostril?
 
-Nostril combines Pocket/Raindrop-style bookmarking with Nostr's decentralized identity and provenance. Everything you capture is stored as signed Nostr events, giving you:
+Nostril combines Pocket/Raindrop-style bookmarking with Nostr's decentralized identity. Everything you capture is stored as signed Nostr events:
 
 - **True ownership** - Your data lives across relays, not locked in a service
 - **Cryptographic attribution** - Everything is signed and verifiable
 - **Ultimate portability** - Access your library from any Nostr client
-- **Social discovery** - Follow what your network is reading and capturing
+- **Social discovery** - Follow what your network is reading
 - **Privacy-first** - Built on cryptographic primitives, not surveillance
 
-## 📋 Features
+## Features
 
-### 📚 **Capture Everything**
+### Capture Everything
 - **Links** - Save articles with auto-extracted metadata
-- **Images** - Screenshot and save images with Blossom blobs
-- **PDFs** - Store documents with text extraction
-- **Quick Notes** - Capture thoughts and ideas with markdown
-- **Share target** - Capture from any app via PWA share
+- **Images** - Store images with Blossom blobs
+- **PDFs** - Documents with text extraction
+- **Quick Notes** - Markdown notes and ideas
+- **PWA Share** - Capture from any app
 
-### 🎨 **Beautiful Reading Experience**
-- **Markdown editor** - CodeMirror 6 with syntax highlighting
-- **Split view** - Edit while previewing in real-time
-- **Slash commands** - `/` for quick formatting
-- **Wikilinks** - `[[page]]` to link saves together
-- **Backlinks** - See what other saves reference this one
+### Beautiful Editor
+- CodeMirror 6 with syntax highlighting
+- Split view editing with live preview
+- Slash commands for quick formatting
+- `[[Wikilinks]]` to connect saves
+- Backlinks to see references
 
-### 🔍 **Powerful Discovery**
-- **Full-text search** across titles, content, tags
-- **Smart filtering** by content type, tags, date
-- **Multiple view modes** - Grid, list, headlines
-- **Tag-based organization** with color coded badges
-- **Collections** - NIP-51 lists that follow you
+### Powerful Organization
+- Full-text search across everything
+- Filter by content type, tags, date
+- Grid, list, and headline views
+- Tag-based organization
+- NIP-51 collections
 
-### 🚀 **Nostr Native**
-- **Decentralized identity** - Sign in with Nostr keys
-- **Cryptographic attribution** - Every save is signed
-- **Relay freedom** - Use your preferred relays
-- **Portable data** - Access from any Nostr client
-- **Social features** - Share collections, follow reading
+### Nostr Native
+- Sign in with your Nostr keys
+- Use your preferred relays
+- Portable across clients
+- Shareable collections
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: React 18 + Vite + TypeScript
-- **UI**: shadcn/ui components with TailwindCSS
-- **Editor**: CodeMirror 6 with markdown support
-- **Nostr**: @nostrify for events, NIP-07 signing
-- **Storage**: Blossom for blobs (images/PDFs)
-- **PWA**: Service worker for offline access
-- **Template**: Shakespeare MKStack
+- **UI**: shadcn/ui + TailwindCSS
+- **Editor**: CodeMirror 6
+- **Nostr**: @nostrify
+- **Storage**: Blossom for blobs
+- **PWA**: Offline-capable
 
-## 📱 Try It Now
+## Quick Start
 
-1. **Clone & Edit**: Click the "Edit with Shakespeare" button above to clone this repo and edit it directly on shakespeare.diy
-2. **Try it**: The app will open with Nostr login ready to use
-3. **Deploy**: When ready, deploy to your preferred hosting provider
+```bash
+git clone https://github.com/PerceptLabs/nostril
+cd nostril
+npm install
+npm run dev
+```
 
-## 🏗️ Architecture
+Open `http://localhost:5173` in your browser.
 
-### Event Kinds (NIP-78)
+## Event Schema
 
-**Kind 30078: Save Event**
+### Kind 30078: Save Event
 ```json
 {
   "kind": 30078,
@@ -73,8 +72,6 @@ Nostril combines Pocket/Raindrop-style bookmarking with Nostr's decentralized id
     ["d", "unique-save-id"],
     ["r", "https://example.com/article"],
     ["title", "Article Title"],
-    ["description", "Brief excerpt"],
-    ["image", "thumbnail-url"],
     ["content-type", "link|image|pdf|note"],
     ["t", "reading"],
     ["t", "tech"]
@@ -82,84 +79,45 @@ Nostril combines Pocket/Raindrop-style bookmarking with Nostr's decentralized id
 }
 ```
 
-**Kind 30079: Annotation Event**
+### Kind 30079: Annotation Event
 ```json
 {
   "kind": 30079,
-  "content": "Important insight about this...",
+  "content": "Highlighted insight...",
   "tags": [
-    ["d", "unique-annotation-id"],
+    ["d", "annotation-id"],
     ["e", "parent-save-event-id"],
-    ["context", "quoted text"],
-    ["range", "start:end"]
+    ["context", "quoted text"]
   ]
 }
 ```
 
-### Collections (NIP-51)
+See [NIP.md](NIP.md) for the complete specification.
 
-Uses kind 30001 for replaceable lists of save IDs:
-```json
-{
-  "kind": 30001,
-  "tags": [
-    ["d", "reading-list"],
-    ["title", "My Reading List"]
-  ]
-}
-```
+## Roadmap
 
-## 🧪 Development
-
-```bash
-npm install
-npm run dev          # Start dev server
-npm run build        # Build for production
-npm run test         # Run tests
-```
-
-## 📦 Features In Progress
-
-**Phase 2 - Coming Soon:**
-- Wikilinks between saves
+**In Progress:**
 - Graph view of save connections
 - Annotations on saved content
 - Collections drag-drop
 
-**Phase 3 - Future:**
+**Future:**
 - Cashu tipping for saves
 - Paywalled collections
-- WoT discovery feed
-- Blossom archival fees
+- Web of Trust discovery feed
 
-## 🔧 Custom Events
+## Deploy
 
-This project uses custom Nostr event kinds for saves and annotations. See [NIP.md](NIP.md) for the complete specification.
+```bash
+npm run build
+```
 
-## 🌐 Deploy Your Own
+Deploy the `dist/` folder to any static host. Update relay configuration in `src/App.tsx` as needed.
 
-1. Clone this repo
-2. Update relay configuration in [src/App.tsx](src/App.tsx)
-3. Configure your Blossom storage server
-4. `npm run build` to create production build
-5. Deploy the `dist/` folder to your hosting provider
+## License
 
-## 🚧 Troubleshooting
+MIT
 
-**Preview Issues**: If the preview pane shows "Welcome to your blank app", try:
-- Hard refresh (Ctrl+Shift+R)
-- Clear browser cache
-- Use private/incognito mode
-- The app code is correct, this appears to be a platform-level caching issue
+## Contributing
 
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-Contributions welcome! This is a community project for the Nostr ecosystem. Open an issue to discuss new features or improvements.
-
----
-
-**Vibed with [Shakespeare](https://shakespeare.diy) and built on [MKStack](https://soapbox.pub/mkstack)**
+Contributions welcome! Open an issue to discuss features or improvements.
