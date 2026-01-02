@@ -29,3 +29,5 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+
+console.log("App mounted successfully!", new Date().toISOString());
