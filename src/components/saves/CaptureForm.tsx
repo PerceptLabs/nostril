@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -25,9 +24,12 @@ import {
   Link as LinkIcon,
   Loader2,
   Sparkles,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContentType, CaptureData } from "@/lib/nostril";
+import { extractMetadata as fetchMetadata, detectContentType, type ExtractedMetadata } from "@/lib/metadata";
 
 const captureSchema = z.object({
   url: z.string().url().optional().or(z.literal("")),
@@ -64,11 +66,9 @@ export function CaptureForm({
 }: CaptureFormProps) {
   const [newTag, setNewTag] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedMetadata, setExtractedMetadata] = useState<{
-    title?: string;
-    description?: string;
-    image?: string;
-  } | null>(null);
+  const [extractedMetadata, setExtractedMetadata] = useState<ExtractedMetadata | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const form = useForm<CaptureFormData>({
     resolver: zodResolver(captureSchema),
@@ -77,7 +77,7 @@ export function CaptureForm({
       title: "",
       description: "",
       content: "",
-      contentType: initialUrl ? "link" : "note",
+      contentType: initialUrl ? detectContentType(initialUrl) : "note",
       tags: [],
     },
   });
@@ -87,33 +87,89 @@ export function CaptureForm({
   const watchedContentType = watch("contentType");
   const watchedTags = watch("tags");
 
-  // Auto-extract metadata when URL changes
+  // Debounced metadata extraction when URL changes
   useEffect(() => {
-    if (watchedUrl && watchedContentType === "link") {
-      extractMetadata(watchedUrl);
+    if (!watchedUrl || watchedContentType === "note") {
+      setExtractedMetadata(null);
+      setExtractError(null);
+      return;
+    }
+
+    // Validate URL
+    try {
+      new URL(watchedUrl);
+    } catch {
+      return;
+    }
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const timeoutId = setTimeout(() => {
+      extractMetadataFromUrl(watchedUrl);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [watchedUrl, watchedContentType]);
+
+  // Auto-detect content type from URL
+  useEffect(() => {
+    if (watchedUrl && watchedContentType !== "note") {
+      try {
+        const detected = detectContentType(watchedUrl);
+        if (detected !== watchedContentType) {
+          setValue("contentType", detected);
+        }
+      } catch {
+        // Invalid URL, ignore
+      }
     }
   }, [watchedUrl]);
 
-  const extractMetadata = useCallback(async (url: string) => {
+  const extractMetadataFromUrl = useCallback(async (url: string) => {
     setIsExtracting(true);
-    try {
-      // In a real implementation, this would fetch the page and extract metadata
-      // For now, we'll simulate with a timeout and basic parsing
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    setExtractError(null);
 
-      // Basic URL-based extraction
-      const hostname = new URL(url).hostname;
-      setExtractedMetadata({
-        title: hostname,
-        description: `Saved from ${hostname}`,
-        image: undefined,
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const metadata = await fetchMetadata(url, {
+        timeout: 15000,
+        signal: abortControllerRef.current.signal,
       });
+
+      setExtractedMetadata(metadata);
+
+      // Auto-fill title if empty
+      if (metadata.title && !form.getValues("title")) {
+        setValue("title", metadata.title);
+      }
+
+      // Auto-fill description if empty
+      if (metadata.description && !form.getValues("description")) {
+        setValue("description", metadata.description);
+      }
     } catch (error) {
-      console.error("Failed to extract metadata:", error);
+      if ((error as Error).name !== 'AbortError') {
+        console.error("Failed to extract metadata:", error);
+        setExtractError("Could not extract metadata from this URL");
+      }
     } finally {
       setIsExtracting(false);
     }
-  }, []);
+  }, [form, setValue]);
+
+  const handleRefreshMetadata = useCallback(() => {
+    if (watchedUrl) {
+      setExtractedMetadata(null);
+      extractMetadataFromUrl(watchedUrl);
+    }
+  }, [watchedUrl, extractMetadataFromUrl]);
 
   const handleAddTag = useCallback(() => {
     if (newTag.trim() && !watchedTags.includes(newTag.trim().toLowerCase())) {
@@ -145,6 +201,15 @@ export function CaptureForm({
       refs: [],
     });
   });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,48 +246,96 @@ export function CaptureForm({
           {watchedContentType !== "note" && (
             <div className="space-y-2">
               <Label htmlFor="url">URL</Label>
-              <Input
-                id="url"
-                placeholder="https://example.com/article"
-                {...register("url")}
-                onChange={(e) => {
-                  setValue("url", e.target.value);
-                  setExtractedMetadata(null);
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="url"
+                  placeholder="https://example.com/article"
+                  value={watchedUrl}
+                  onChange={(e) => {
+                    setValue("url", e.target.value);
+                    setExtractedMetadata(null);
+                  }}
+                  className="flex-1"
+                />
+                {watchedUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleRefreshMetadata}
+                    disabled={isExtracting}
+                    title="Refresh metadata"
+                  >
+                    <RefreshCw className={cn("h-4 w-4", isExtracting && "animate-spin")} />
+                  </Button>
+                )}
+              </div>
               {errors.url && (
                 <p className="text-sm text-destructive">{errors.url.message}</p>
               )}
               {isExtracting && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Extracting metadata...
+                  Extracting metadata from page...
                 </div>
+              )}
+              {extractError && (
+                <p className="text-sm text-amber-500">{extractError}</p>
               )}
             </div>
           )}
 
           {/* Metadata preview */}
           {extractedMetadata && (
-            <Card className="bg-muted/50">
-              <CardContent className="p-4 space-y-2">
+            <Card className="bg-muted/50 overflow-hidden">
+              <CardContent className="p-0">
                 {extractedMetadata.image && (
-                  <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                  <div className="aspect-video bg-muted overflow-hidden">
                     <img
                       src={extractedMetadata.image}
                       alt="Preview"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   </div>
                 )}
-                {extractedMetadata.title && (
-                  <p className="font-medium">{extractedMetadata.title}</p>
-                )}
-                {extractedMetadata.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {extractedMetadata.description}
-                  </p>
-                )}
+                <div className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {extractedMetadata.title && (
+                        <p className="font-medium truncate">{extractedMetadata.title}</p>
+                      )}
+                      {extractedMetadata.siteName && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <ExternalLink className="h-3 w-3" />
+                          {extractedMetadata.siteName}
+                        </p>
+                      )}
+                    </div>
+                    {extractedMetadata.favicon && (
+                      <img
+                        src={extractedMetadata.favicon}
+                        alt=""
+                        className="h-6 w-6 rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
+                  {extractedMetadata.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {extractedMetadata.description}
+                    </p>
+                  )}
+                  {extractedMetadata.author && (
+                    <p className="text-xs text-muted-foreground">
+                      By {extractedMetadata.author}
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -235,7 +348,8 @@ export function CaptureForm({
               placeholder={
                 extractedMetadata?.title || (watchedContentType === "link" ? "Article title" : "Note title")
               }
-              {...register("title")}
+              value={watch("title")}
+              onChange={(e) => setValue("title", e.target.value)}
             />
           </div>
 
@@ -247,7 +361,8 @@ export function CaptureForm({
               placeholder={extractedMetadata?.description || "Add a description..."}
               className="resize-none"
               rows={2}
-              {...register("description")}
+              value={watch("description")}
+              onChange={(e) => setValue("description", e.target.value)}
             />
           </div>
 
@@ -258,7 +373,8 @@ export function CaptureForm({
               id="content"
               placeholder="Add your notes, thoughts, or annotations..."
               className="resize-none min-h-[100px]"
-              {...register("content")}
+              value={watch("content")}
+              onChange={(e) => setValue("content", e.target.value)}
             />
           </div>
 
@@ -270,7 +386,7 @@ export function CaptureForm({
                 <Badge
                   key={tag}
                   variant="secondary"
-                  className="gap-1 cursor-pointer"
+                  className="gap-1 cursor-pointer hover:bg-destructive/20"
                   onClick={() => handleRemoveTag(tag)}
                 >
                   #{tag}
@@ -319,9 +435,4 @@ export function CaptureForm({
       </DialogContent>
     </Dialog>
   );
-}
-
-// Helper to register form fields
-function register(name: keyof CaptureFormData) {
-  return { name, id: name };
 }

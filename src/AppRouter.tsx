@@ -8,6 +8,7 @@ import { Editor } from "./pages/Editor";
 import { Inbox } from "./pages/Inbox";
 import { Collections, CollectionDetail } from "./pages/Collections";
 import { SearchPage } from "./pages/Search";
+import { Graph } from "./pages/Graph";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -25,6 +26,7 @@ export function AppRouter() {
           <Route path="collections/:id" element={<CollectionDetail />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="search/:query" element={<SearchPage />} />
+          <Route path="graph" element={<Graph />} />
         </Route>
 
         {/* Redirect common paths */}

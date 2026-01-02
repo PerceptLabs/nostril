@@ -17,7 +17,7 @@ export function useSaves(filter?: SaveFilter) {
     queryFn: async (c) => {
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(15000)]);
 
-      const kinds = [30078] as const;
+      const kinds = [30078];
       const filters: Parameters<typeof nostr.query>[0] = [{ kinds, limit: filter?.limit ?? 50 }];
 
       // Add tag filter
@@ -265,4 +265,81 @@ export function useWikilinkSearch(query: string) {
   }, [saves, query]);
 
   return { data, isLoading };
+}
+
+/**
+ * Hook to delete a save (by publishing a delete event - kind 5)
+ */
+export function useDeleteSave() {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publish, isPending } = useNostrPublish();
+
+  const deleteSave = useCallback(
+    async (save: ParsedSave): Promise<boolean> => {
+      if (!user) {
+        throw new Error("Must be logged in to delete saves");
+      }
+
+      // Check ownership
+      if (save.author.pubkey !== user.pubkey) {
+        throw new Error("You can only delete your own saves");
+      }
+
+      // Publish a delete event (NIP-09)
+      // For addressable events (30000-39999), we use the 'a' tag
+      const eventData = {
+        kind: 5,
+        content: "Deleted",
+        tags: [
+          ["e", save.id],
+          ["a", `30078:${save.author.pubkey}:${save.dTag}`],
+        ],
+      };
+
+      const event = await publish(eventData);
+      return !!event?.id;
+    },
+    [user, publish]
+  );
+
+  return { deleteSave, isPending };
+}
+
+/**
+ * Hook to get backlink counts for multiple saves
+ */
+export function useBacklinkCounts(dTags: string[]) {
+  const { nostr } = useNostr();
+
+  return useQuery({
+    queryKey: ["backlink-counts", dTags],
+    queryFn: async (c) => {
+      if (dTags.length === 0) return new Map<string, number>();
+
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(10000)]);
+      const counts = new Map<string, number>();
+
+      // Query all backlinks in one request
+      const events = await nostr.query(
+        [{ kinds: [30078], "#ref": dTags }],
+        { signal }
+      );
+
+      // Count backlinks per dTag
+      events.forEach((event) => {
+        event.tags
+          .filter((t) => t[0] === "ref")
+          .forEach((t) => {
+            const refDTag = t[1];
+            if (dTags.includes(refDTag)) {
+              counts.set(refDTag, (counts.get(refDTag) || 0) + 1);
+            }
+          });
+      });
+
+      return counts;
+    },
+    enabled: dTags.length > 0,
+    staleTime: 60000,
+  });
 }

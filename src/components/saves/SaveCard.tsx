@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,13 +8,16 @@ import {
   MoreHorizontal,
   ExternalLink,
   Bookmark,
-  Tag,
   Link as LinkIcon,
   Image as ImageIcon,
   FileText,
   Trash,
   Edit,
   Share2,
+  Zap,
+  ArrowUpRight,
+  Copy,
+  Link2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,9 +26,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ZapButton } from "@/components/ZapButton";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { ParsedSave, ContentType } from "@/lib/nostril";
+import type { NostrEvent } from "@nostrify/nostrify";
 
 interface SaveCardProps {
   save: ParsedSave;
@@ -33,6 +48,7 @@ interface SaveCardProps {
   onEdit?: (save: ParsedSave) => void;
   onDelete?: (save: ParsedSave) => void;
   onShare?: (save: ParsedSave) => void;
+  backlinkCount?: number;
   className?: string;
 }
 
@@ -56,249 +72,317 @@ export function SaveCard({
   onEdit,
   onDelete,
   onShare,
+  backlinkCount = 0,
   className,
 }: SaveCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const displayTitle = save.title || save.url || "Untitled";
-  const hostname = save.url ? new URL(save.url).hostname : null;
+  const hostname = save.url ? (() => {
+    try {
+      return new URL(save.url).hostname;
+    } catch {
+      return null;
+    }
+  })() : null;
   const excerpt = save.description || save.content?.slice(0, 150);
+
+  // Convert ParsedSave to NostrEvent format for ZapButton
+  const saveAsEvent = useMemo((): NostrEvent => ({
+    id: save.id,
+    pubkey: save.author.pubkey,
+    created_at: Math.floor(save.publishedAt.getTime() / 1000),
+    kind: 30078,
+    tags: [["d", save.dTag]],
+    content: save.content,
+    sig: "",
+  }), [save]);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/${save.dTag}`;
+    navigator.clipboard.writeText(url);
+    onShare?.(save);
+  };
+
+  const handleOpenOriginal = () => {
+    if (save.url) {
+      window.open(save.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    setShowDeleteConfirm(false);
+    onDelete?.(save);
+  };
+
+  // Stats row component
+  const StatsRow = ({ compact = false }: { compact?: boolean }) => (
+    <div className={cn("flex items-center gap-3", compact ? "text-xs" : "text-xs")}>
+      <span className="text-muted-foreground">
+        {formatDistanceToNow(save.publishedAt, { addSuffix: true })}
+      </span>
+      {backlinkCount > 0 && (
+        <span className="text-muted-foreground flex items-center gap-1" title={`${backlinkCount} backlink${backlinkCount !== 1 ? 's' : ''}`}>
+          <Link2 className="h-3 w-3" />
+          {backlinkCount}
+        </span>
+      )}
+      <ZapButton target={saveAsEvent} className="text-xs" showCount />
+    </div>
+  );
+
+  // Delete confirmation dialog
+  const DeleteConfirmDialog = () => (
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this save?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete "{displayTitle}". This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // Action menu component
+  const ActionMenu = ({ triggerClassName }: { triggerClassName?: string }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", triggerClassName)}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onEdit?.(save)}>
+          <Edit className="h-4 w-4 mr-2" />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleCopyLink}>
+          <Copy className="h-4 w-4 mr-2" />
+          Copy Link
+        </DropdownMenuItem>
+        {save.url && (
+          <DropdownMenuItem onClick={handleOpenOriginal}>
+            <ArrowUpRight className="h-4 w-4 mr-2" />
+            Open Original
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive">
+          <Trash className="h-4 w-4 mr-2" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   if (viewMode === "headlines") {
     return (
-      <Card className={cn("group hover:shadow-md transition-all", className)}>
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <Link
-              to={`/${save.dTag}`}
-              className="text-lg font-semibold hover:text-primary transition-colors line-clamp-2"
-            >
-              {displayTitle}
-            </Link>
-            <div className="flex items-center gap-1 shrink-0">
-              <Badge
-                variant="secondary"
-                className={cn("gap-1", contentTypeColors[save.contentType])}
+      <>
+        <Card className={cn("group hover:shadow-md transition-all", className)}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-start justify-between gap-2">
+              <Link
+                to={`/${save.dTag}`}
+                className="text-lg font-semibold hover:text-primary transition-colors line-clamp-2"
               >
-                {contentTypeIcons[save.contentType]}
-                {save.contentType}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          {save.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {save.tags.slice(0, 5).map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  #{tag}
+                {displayTitle}
+              </Link>
+              <div className="flex items-center gap-1 shrink-0">
+                <Badge
+                  variant="secondary"
+                  className={cn("gap-1", contentTypeColors[save.contentType])}
+                >
+                  {contentTypeIcons[save.contentType]}
+                  {save.contentType}
                 </Badge>
-              ))}
-              {save.tags.length > 5 && (
-                <Badge variant="outline" className="text-xs">
-                  +{save.tags.length - 5}
-                </Badge>
-              )}
+                <ActionMenu triggerClassName="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
-          )}
-        </CardContent>
-        <CardFooter className="p-4 pt-0 text-xs text-muted-foreground">
-          <span>{save.author.name || formatDistanceToNow(save.publishedAt, { addSuffix: true })}</span>
-        </CardFooter>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {save.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {save.tags.slice(0, 5).map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs">
+                    #{tag}
+                  </Badge>
+                ))}
+                {save.tags.length > 5 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{save.tags.length - 5}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="p-4 pt-0">
+            <StatsRow compact />
+          </CardFooter>
+        </Card>
+        <DeleteConfirmDialog />
+      </>
     );
   }
 
   if (viewMode === "list") {
     return (
-      <Card className={cn("group hover:shadow-md transition-all", className)}>
-        <div className="flex items-start gap-4 p-4">
-          {/* Thumbnail */}
-          {save.image && !imageError && (
-            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-muted">
-              <img
-                src={save.image}
-                alt=""
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <Link
-                to={`/${save.dTag}`}
-                className="font-medium hover:text-primary transition-colors line-clamp-1"
-              >
-                {displayTitle}
+      <>
+        <Card className={cn("group hover:shadow-md transition-all", className)}>
+          <div className="flex items-start gap-4 p-4">
+            {/* Thumbnail */}
+            {save.image && !imageError && (
+              <Link to={`/${save.dTag}`} className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-muted">
+                <img
+                  src={save.image}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
               </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit?.(save)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onShare?.(save)}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onDelete?.(save)} className="text-destructive">
-                    <Trash className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {hostname && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                <ExternalLink className="h-3 w-3" />
-                {hostname}
-              </p>
             )}
 
-            {excerpt && (
-              <p className="text-sm text-muted-foreground line-clamp-1 mt-2">{excerpt}</p>
-            )}
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <Link
+                  to={`/${save.dTag}`}
+                  className="font-medium hover:text-primary transition-colors line-clamp-1"
+                >
+                  {displayTitle}
+                </Link>
+                <ActionMenu triggerClassName="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
 
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="secondary" className={cn("gap-1 text-xs", contentTypeColors[save.contentType])}>
-                {contentTypeIcons[save.contentType]}
-                {save.contentType}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {formatDistanceToNow(save.publishedAt, { addSuffix: true })}
-              </span>
-              {save.tags.length > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {save.tags.length} tag{save.tags.length !== 1 ? "s" : ""}
-                </span>
+              {hostname && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                  <ExternalLink className="h-3 w-3" />
+                  {hostname}
+                </p>
               )}
+
+              {excerpt && (
+                <p className="text-sm text-muted-foreground line-clamp-1 mt-2">{excerpt}</p>
+              )}
+
+              <div className="flex items-center gap-3 mt-2">
+                <Badge variant="secondary" className={cn("gap-1 text-xs", contentTypeColors[save.contentType])}>
+                  {contentTypeIcons[save.contentType]}
+                  {save.contentType}
+                </Badge>
+                <StatsRow compact />
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+        <DeleteConfirmDialog />
+      </>
     );
   }
 
   // Grid view (default)
   return (
-    <Card className={cn("group overflow-hidden hover:shadow-lg transition-all", className)}>
-      {/* Thumbnail */}
-      <Link
-        to={`/${save.dTag}`}
-        className="block aspect-video bg-muted relative overflow-hidden"
-      >
-        {save.image && !imageError ? (
-          <img
-            src={save.image}
-            alt=""
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {save.contentType === "image" ? (
-              <ImageIcon className="h-12 w-12" />
-            ) : (
-              <Bookmark className="h-12 w-12" />
-            )}
-          </div>
-        )}
-
-        {/* Content type badge */}
-        <div className="absolute top-2 right-2">
-          <Badge
-            variant="secondary"
-            className={cn("gap-1 shadow-sm", contentTypeColors[save.contentType])}
-          >
-            {contentTypeIcons[save.contentType]}
-          </Badge>
-        </div>
-      </Link>
-
-      {/* Content */}
-      <CardContent className="p-4">
+    <>
+      <Card className={cn("group overflow-hidden hover:shadow-lg transition-all", className)}>
+        {/* Thumbnail */}
         <Link
           to={`/${save.dTag}`}
-          className="font-medium hover:text-primary transition-colors line-clamp-2"
+          className="block aspect-video bg-muted relative overflow-hidden"
         >
-          {displayTitle}
+          {save.image && !imageError ? (
+            <img
+              src={save.image}
+              alt=""
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              {save.contentType === "image" ? (
+                <ImageIcon className="h-12 w-12" />
+              ) : (
+                <Bookmark className="h-12 w-12" />
+              )}
+            </div>
+          )}
+
+          {/* Content type badge */}
+          <div className="absolute top-2 right-2">
+            <Badge
+              variant="secondary"
+              className={cn("gap-1 shadow-sm", contentTypeColors[save.contentType])}
+            >
+              {contentTypeIcons[save.contentType]}
+            </Badge>
+          </div>
+
+          {/* Backlink indicator */}
+          {backlinkCount > 0 && (
+            <div className="absolute top-2 left-2">
+              <Badge variant="secondary" className="gap-1 shadow-sm bg-background/80">
+                <Link2 className="h-3 w-3" />
+                {backlinkCount}
+              </Badge>
+            </div>
+          )}
         </Link>
 
-        {hostname && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-            <ExternalLink className="h-3 w-3" />
-            {hostname}
-          </p>
-        )}
+        {/* Content */}
+        <CardContent className="p-4">
+          <Link
+            to={`/${save.dTag}`}
+            className="font-medium hover:text-primary transition-colors line-clamp-2"
+          >
+            {displayTitle}
+          </Link>
 
-        {excerpt && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{excerpt}</p>
-        )}
+          {hostname && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+              <ExternalLink className="h-3 w-3" />
+              {hostname}
+            </p>
+          )}
 
-        {save.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {save.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                #{tag}
-              </Badge>
-            ))}
-            {save.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{save.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-      </CardContent>
+          {excerpt && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{excerpt}</p>
+          )}
 
-      {/* Footer */}
-      <CardFooter className="p-4 pt-0 justify-between">
-        <span className="text-xs text-muted-foreground">
-          {formatDistanceToNow(save.publishedAt, { addSuffix: true })}
-        </span>
+          {save.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {save.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  #{tag}
+                </Badge>
+              ))}
+              {save.tags.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{save.tags.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+        </CardContent>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit?.(save)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onShare?.(save)}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete?.(save)} className="text-destructive">
-              <Trash className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardFooter>
-    </Card>
+        {/* Footer */}
+        <CardFooter className="p-4 pt-0 justify-between">
+          <StatsRow />
+          <ActionMenu triggerClassName="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </CardFooter>
+      </Card>
+      <DeleteConfirmDialog />
+    </>
   );
 }
 

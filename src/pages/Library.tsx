@@ -1,5 +1,8 @@
-import { useState, useCallback } from "react";
-import { useSaves, useAllTags, useCreateSave } from "@/hooks/useSaves";
+import { useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSaves, useAllTags, useCreateSave, useDeleteSave, useBacklinkCounts } from "@/hooks/useSaves";
+import { useToast } from "@/hooks/useToast";
+import { useQueryClient } from "@tanstack/react-query";
 import { SaveCard, SaveCardSkeleton } from "@/components/saves/SaveCard";
 import { QuickNote } from "@/components/saves/QuickNote";
 import { CaptureForm } from "@/components/saves/CaptureForm";
@@ -14,26 +17,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
   Plus,
   LayoutGrid,
   List,
   Heading,
-  Filter,
   X,
-  Loader2,
   Globe,
   Image as ImageIcon,
   FileText,
   Link as LinkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ViewMode, ContentType, CaptureData } from "@/lib/nostril";
+import type { ViewMode, ContentType, CaptureData, ParsedSave } from "@/lib/nostril";
 
 export function Library() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -49,6 +53,11 @@ export function Library() {
 
   const { data: allTags } = useAllTags();
   const { createSave, isPending: isSubmitting } = useCreateSave();
+  const { deleteSave, isPending: isDeleting } = useDeleteSave();
+
+  // Get backlink counts for all visible saves
+  const dTags = useMemo(() => saves?.map((s) => s.dTag) || [], [saves]);
+  const { data: backlinkCounts } = useBacklinkCounts(dTags);
 
   const handleToggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
@@ -58,24 +67,87 @@ export function Library() {
 
   const handleQuickCapture = useCallback(
     async (content: string, tags: string[]) => {
-      await createSave({
-        url: undefined,
-        contentType: "note",
-        content,
-        tags,
-        refs: [],
-        title: content.split("\n")[0]?.slice(0, 50) || "Quick note",
-      });
+      try {
+        await createSave({
+          url: undefined,
+          contentType: "note",
+          content,
+          tags,
+          refs: [],
+          title: content.split("\n")[0]?.slice(0, 50) || "Quick note",
+        });
+        toast({
+          title: "Note saved",
+          description: "Your quick note has been saved to the library.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["saves"] });
+      } catch (error) {
+        toast({
+          title: "Failed to save",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
     },
-    [createSave]
+    [createSave, toast, queryClient]
   );
 
   const handleCaptureSubmit = useCallback(
     async (data: CaptureData) => {
-      await createSave(data);
-      setShowCaptureForm(false);
+      try {
+        await createSave(data);
+        setShowCaptureForm(false);
+        toast({
+          title: "Saved!",
+          description: data.title || "Content has been saved to your library.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["saves"] });
+      } catch (error) {
+        toast({
+          title: "Failed to save",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
     },
-    [createSave]
+    [createSave, toast, queryClient]
+  );
+
+  const handleEdit = useCallback(
+    (save: ParsedSave) => {
+      navigate(`/${save.dTag}`);
+    },
+    [navigate]
+  );
+
+  const handleDelete = useCallback(
+    async (save: ParsedSave) => {
+      try {
+        await deleteSave(save);
+        toast({
+          title: "Deleted",
+          description: `"${save.title || "Save"}" has been deleted.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["saves"] });
+      } catch (error) {
+        toast({
+          title: "Failed to delete",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    [deleteSave, toast, queryClient]
+  );
+
+  const handleShare = useCallback(
+    (save: ParsedSave) => {
+      toast({
+        title: "Link copied",
+        description: "The link has been copied to your clipboard.",
+      });
+    },
+    [toast]
   );
 
   const clearFilters = () => {
@@ -296,9 +368,10 @@ export function Library() {
                 key={save.id}
                 save={save}
                 viewMode={viewMode}
-                onEdit={() => { /* TODO: Implement edit functionality */ }}
-                onDelete={() => { /* TODO: Implement delete functionality */ }}
-                onShare={() => { /* TODO: Implement share functionality */ }}
+                backlinkCount={backlinkCounts?.get(save.dTag) || 0}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onShare={handleShare}
               />
             ))}
           </div>
