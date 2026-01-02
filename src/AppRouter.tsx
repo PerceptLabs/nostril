@@ -12,7 +12,7 @@ import { NIP19Page } from "./pages/NIP19Page";
 import NotFound from "./pages/NotFound";
 
 // Known paths that should render specific pages
-const KNOWN_PATHS = new Set(['', 'inbox', 'library', 'collections', 'search']);
+const KNOWN_PATHS = new Set(['', 'home', 'index', 'inbox', 'library', 'collections', 'search']);
 
 // Check if a path looks like a NIP-19 identifier
 function isNip19Identifier(path: string): boolean {
@@ -22,8 +22,8 @@ function isNip19Identifier(path: string): boolean {
 // Check if a path looks like a valid save ID (d-tag)
 function isSaveId(path: string): boolean {
   // Save IDs typically have a specific format
-  return !KNOWN_PATHS.has(path) && 
-         !isNip19Identifier(path) && 
+  return !KNOWN_PATHS.has(path) &&
+         !isNip19Identifier(path) &&
          !path.startsWith('_') &&
          path.length > 5;
 }

@@ -23,7 +23,7 @@ import { cn, formatDistanceToNow } from "@/lib/utils";
 import type { ContentType, ParsedSave } from "@/lib/nostril";
 
 // Known route paths that should NOT be treated as save IDs
-const KNOWN_PATHS = ["inbox", "library", "collections", "search", "settings", "about", "login", "signup"];
+const KNOWN_PATHS = ["home", "inbox", "library", "collections", "search", "settings", "about", "login", "signup", "index"];
 
 export function Editor() {
   const { dTag } = useParams<{ dTag: string }>();
