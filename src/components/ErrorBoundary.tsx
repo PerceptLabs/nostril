@@ -48,36 +48,27 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   render() {
-    console.log("ErrorBoundary render - hasError:", this.state.hasError);
-
     if (this.state.hasError) {
-      console.log("Showing error screen:", this.state.error?.message);
-
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
       return (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: '#ef4444',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px',
-          fontWeight: 'bold',
-          border: '10px solid #ffed00',
-          textAlign: 'center',
-          zIndex: 10000
-        }}>
-          ERROR BOUNDARY: {this.state.error?.message}
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <div className="max-w-md w-full space-y-4 text-center">
+            <h1 className="text-2xl font-bold text-destructive">Something went wrong</h1>
+            <p className="text-muted-foreground">{this.state.error?.message}</p>
+            <button
+              onClick={this.handleReset}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       );
     }
 
-    console.log("ErrorBoundary showing children");
     return this.props.children;
   }
 }
