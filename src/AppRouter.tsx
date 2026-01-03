@@ -10,6 +10,12 @@ import { Collections, CollectionDetail } from "./pages/Collections";
 import { SearchPage } from "./pages/Search";
 import { Graph } from "./pages/Graph";
 import { Settings } from "./pages/Settings";
+import { Articles } from "./pages/Articles";
+import { ArticleEditor } from "./pages/ArticleEditor";
+import { ArticleView } from "./pages/ArticleView";
+import { Discover } from "./pages/Discover";
+import { BoardView } from "./pages/BoardView";
+import { ExploreBoards } from "./pages/ExploreBoards";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -29,6 +35,17 @@ export function AppRouter() {
           <Route path="search/:query" element={<SearchPage />} />
           <Route path="graph" element={<Graph />} />
           <Route path="settings" element={<Settings />} />
+
+          {/* Articles */}
+          <Route path="articles" element={<Articles />} />
+          <Route path="write" element={<ArticleEditor />} />
+          <Route path="write/:dTag" element={<ArticleEditor />} />
+          <Route path="article/:dTag" element={<ArticleView />} />
+          <Route path="discover" element={<Discover />} />
+
+          {/* Boards */}
+          <Route path="boards" element={<ExploreBoards />} />
+          <Route path="board/:boardId" element={<BoardView />} />
         </Route>
 
         {/* Redirect common paths */}

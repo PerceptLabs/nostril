@@ -2,6 +2,8 @@ import Dexie, { type Table } from 'dexie';
 
 export type Visibility = 'private' | 'shared' | 'unlisted' | 'public';
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'conflict' | 'published';
+export type ArticleStatus = 'draft' | 'scheduled' | 'published';
+export type CollectionLayout = 'list' | 'grid' | 'masonry' | 'gallery';
 
 export interface LocalSave {
   id: string;           // d-tag
@@ -33,6 +35,19 @@ export interface LocalSave {
   updatedAt: number;
 }
 
+// Board item for visual collections
+export interface BoardItem {
+  id: string;
+  kind: number;
+  url?: string;
+  title?: string;
+  image?: string;
+  addedAt: number;
+  addedBy: string;
+  position?: number;
+  note?: string;
+}
+
 export interface LocalCollection {
   id: string;           // d-tag
   name: string;
@@ -44,11 +59,26 @@ export interface LocalCollection {
   sharedWith?: string[];
   allowOverride: boolean;       // can saves override? default: true
 
+  // Visual/Board settings
+  layout: CollectionLayout;
+  coverImage?: string;
+  coverColor?: string;
+  showCaptions: boolean;
+  columns: 2 | 3 | 4 | 5;
+
+  // Board items (for gallery mode)
+  items?: BoardItem[];
+
+  // Collaboration
+  collaborators?: string[];
+  isCollaborative: boolean;
+
   // Sync metadata
   syncStatus: SyncStatus;
   localUpdatedAt: number;
   remoteUpdatedAt?: number;
   nostrEventId?: string;
+  pubkey?: string;
 
   createdAt: number;
   updatedAt: number;
@@ -73,6 +103,47 @@ export interface LocalAnnotation {
   updatedAt: number;
 }
 
+export interface LocalArticle {
+  id: string;                   // d-tag (slug)
+  title: string;
+  summary: string;
+  content: string;              // markdown content
+  image?: string;               // cover image
+  tags: string[];
+
+  // Publishing state
+  status: ArticleStatus;
+  publishedAt?: number;
+  scheduledFor?: number;
+
+  // Paywall (Cashu)
+  paywallEnabled: boolean;
+  paywallPrice?: number;        // sats
+  paywallPreviewLength?: number; // chars to show free (default: 500)
+  paywallMintUrl?: string;
+
+  // Sync metadata
+  syncStatus: SyncStatus;
+  localUpdatedAt: number;
+  remoteUpdatedAt?: number;
+  nostrEventId?: string;        // NIP-23 event ID
+
+  // Timestamps
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Track article unlocks (who has paid)
+export interface ArticleUnlock {
+  id: string;                   // `${readerPubkey}:${articleDTag}`
+  articleDTag: string;
+  articleAuthor: string;
+  readerPubkey: string;
+  unlockedAt: number;
+  paymentProof: string;         // Cashu token or Lightning preimage
+  amountPaid: number;
+}
+
 export interface SyncSettings {
   localStorageEnabled: boolean;   // default: true
   relaySyncEnabled: boolean;      // default: true
@@ -83,14 +154,28 @@ export interface SyncSettings {
 class NostrilDB extends Dexie {
   saves!: Table<LocalSave, string>;
   collections!: Table<LocalCollection, string>;
+  articles!: Table<LocalArticle, string>;
+  unlocks!: Table<ArticleUnlock, string>;
   annotations!: Table<LocalAnnotation, string>;
   settings!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
     super('nostril');
+
+    // Version 1: Original schema
     this.version(1).stores({
       saves: 'id, syncStatus, *collectionIds, *tags, visibility, updatedAt, contentType',
       collections: 'id, syncStatus, visibility, updatedAt',
+      annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
+      settings: 'key'
+    });
+
+    // Version 2: Add articles, unlocks tables and board fields to collections
+    this.version(2).stores({
+      saves: 'id, syncStatus, *collectionIds, *tags, visibility, updatedAt, contentType',
+      collections: 'id, syncStatus, visibility, updatedAt, layout, pubkey',
+      articles: 'id, status, syncStatus, *tags, publishedAt, updatedAt',
+      unlocks: 'id, articleDTag, articleAuthor, readerPubkey, unlockedAt',
       annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
       settings: 'key'
     });
@@ -219,6 +304,8 @@ export async function getConflictSaves(): Promise<LocalSave[]> {
 export async function clearLocalData(): Promise<void> {
   await db.saves.clear();
   await db.collections.clear();
+  await db.articles.clear();
+  await db.unlocks.clear();
   await db.annotations.clear();
 }
 
@@ -228,12 +315,16 @@ export async function clearLocalData(): Promise<void> {
 export async function exportLocalData(): Promise<{
   saves: LocalSave[];
   collections: LocalCollection[];
+  articles: LocalArticle[];
+  unlocks: ArticleUnlock[];
   annotations: LocalAnnotation[];
   settings: SyncSettings;
 }> {
   return {
     saves: await db.saves.toArray(),
     collections: await db.collections.toArray(),
+    articles: await db.articles.toArray(),
+    unlocks: await db.unlocks.toArray(),
     annotations: await db.annotations.toArray(),
     settings: await getSyncSettings(),
   };
@@ -245,6 +336,8 @@ export async function exportLocalData(): Promise<{
 export async function importLocalData(data: {
   saves?: LocalSave[];
   collections?: LocalCollection[];
+  articles?: LocalArticle[];
+  unlocks?: ArticleUnlock[];
   annotations?: LocalAnnotation[];
 }): Promise<void> {
   if (data.saves) {
@@ -252,6 +345,12 @@ export async function importLocalData(data: {
   }
   if (data.collections) {
     await db.collections.bulkPut(data.collections);
+  }
+  if (data.articles) {
+    await db.articles.bulkPut(data.articles);
+  }
+  if (data.unlocks) {
+    await db.unlocks.bulkPut(data.unlocks);
   }
   if (data.annotations) {
     await db.annotations.bulkPut(data.annotations);

@@ -29,6 +29,9 @@ import {
   RefreshCw,
   Cloud,
   CloudOff,
+  FileText,
+  Compass,
+  Grid3X3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginArea } from "@/components/auth/LoginArea";
@@ -39,6 +42,9 @@ const navItems = [
   { path: "/inbox", icon: Inbox, label: "Inbox" },
   { path: "/library", icon: Library, label: "Library" },
   { path: "/collections", icon: FolderOpen, label: "Collections" },
+  { path: "/articles", icon: FileText, label: "Articles" },
+  { path: "/boards", icon: Grid3X3, label: "Boards" },
+  { path: "/discover", icon: Compass, label: "Discover" },
   { path: "/graph", icon: Network, label: "Graph" },
   { path: "/search", icon: Search, label: "Search" },
   { path: "/settings", icon: Settings, label: "Settings" },

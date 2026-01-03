@@ -75,6 +75,7 @@
     "dexie-react-hooks": "^4.2.0",
     "ecpair": "^3.0.0",
     "embla-carousel-react": "^8.3.0",
+    "framer-motion": "^12.23.26",
     "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",
     "input-otp": "^1.2.4",
