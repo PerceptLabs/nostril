@@ -18,6 +18,9 @@ import {
   ArrowUpRight,
   Copy,
   Link2,
+  Lock,
+  Globe,
+  Users,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,9 +40,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ZapButton } from "@/components/ZapButton";
+import { SyncStatusDot } from "@/components/sync/SyncStatusIndicator";
+import { VisibilityIcon } from "@/components/sync/VisibilityBadge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { ParsedSave, ContentType } from "@/lib/nostril";
+import type { SyncStatus, Visibility } from "@/lib/storage";
 import type { NostrEvent } from "@nostrify/nostrify";
 
 interface SaveCardProps {
@@ -49,6 +55,8 @@ interface SaveCardProps {
   onDelete?: (save: ParsedSave) => void;
   onShare?: (save: ParsedSave) => void;
   backlinkCount?: number;
+  syncStatus?: SyncStatus;
+  visibility?: Visibility;
   className?: string;
 }
 
@@ -73,6 +81,8 @@ export function SaveCard({
   onDelete,
   onShare,
   backlinkCount = 0,
+  syncStatus,
+  visibility,
   className,
 }: SaveCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -119,6 +129,13 @@ export function SaveCard({
   // Stats row component
   const StatsRow = ({ compact = false }: { compact?: boolean }) => (
     <div className={cn("flex items-center gap-3", compact ? "text-xs" : "text-xs")}>
+      {/* Sync and visibility status */}
+      {(syncStatus || visibility) && (
+        <div className="flex items-center gap-1.5">
+          {syncStatus && <SyncStatusDot status={syncStatus} />}
+          {visibility && <VisibilityIcon visibility={visibility} size="sm" />}
+        </div>
+      )}
       <span className="text-muted-foreground">
         {formatDistanceToNow(save.publishedAt, { addSuffix: true })}
       </span>

@@ -118,6 +118,7 @@ export interface CaptureData {
   content: string;
   tags: string[];
   refs: string[];
+  visibility?: "private" | "shared" | "unlisted" | "public";
 }
 
 /**

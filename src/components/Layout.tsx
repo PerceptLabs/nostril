@@ -19,6 +19,7 @@ import {
   BookOpen,
   Sparkles,
   Network,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginArea } from "@/components/auth/LoginArea";
@@ -30,6 +31,7 @@ const navItems = [
   { path: "/collections", icon: FolderOpen, label: "Collections" },
   { path: "/graph", icon: Network, label: "Graph" },
   { path: "/search", icon: Search, label: "Search" },
+  { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function Layout() {

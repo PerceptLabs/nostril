@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "./useCurrentUser";
 import { useNostrPublish } from "./useNostrPublish";
 import { parseSaveEvent, type ParsedSave } from "@/lib/nostril";
+import type { Visibility } from "@/lib/storage";
 import { nanoid } from "nanoid";
 
 /**
@@ -22,6 +23,9 @@ export interface Collection {
   description?: string;
   image?: string;
   isPublic: boolean;
+  visibility: Visibility;
+  sharedWith?: string[]; // pubkeys for 'shared' visibility
+  allowOverride: boolean; // can saves override visibility?
   saveIds: string[]; // d-tags of saves in this collection
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +51,20 @@ function parseListEvent(event: { id: string; kind: number; tags: string[][]; con
     const description = event.tags.find((t) => t[0] === "description")?.[1];
     const image = event.tags.find((t) => t[0] === "image")?.[1];
 
+    // Parse visibility settings
+    const visibilityTag = event.tags.find((t) => t[0] === "visibility")?.[1];
+    const visibility: Visibility = (["private", "shared", "unlisted", "public"].includes(visibilityTag || "")
+      ? visibilityTag
+      : "private") as Visibility;
+
+    const allowOverrideTag = event.tags.find((t) => t[0] === "allow-override")?.[1];
+    const allowOverride = allowOverrideTag !== "false";
+
+    // Get shared-with pubkeys
+    const sharedWith = event.tags
+      .filter((t) => t[0] === "p" && t[3] === "shared")
+      .map((t) => t[1]);
+
     // Get all 'a' tags that reference our save events (kind 30078)
     // Format: ["a", "30078:pubkey:d-tag"]
     const saveIds = event.tags
@@ -68,7 +86,10 @@ function parseListEvent(event: { id: string; kind: number; tags: string[][]; con
       name,
       description,
       image,
-      isPublic: true, // NIP-51 lists are public by default
+      isPublic: visibility === "public" || visibility === "unlisted",
+      visibility,
+      sharedWith: sharedWith.length > 0 ? sharedWith : undefined,
+      allowOverride,
       saveIds: [...saveIds, ...eventRefs],
       createdAt: new Date(event.created_at * 1000),
       updatedAt: new Date(event.created_at * 1000),
@@ -176,7 +197,14 @@ export function useCreateCollection() {
   const queryClient = useQueryClient();
 
   const createCollection = useCallback(
-    async (data: { name: string; description?: string; image?: string }): Promise<string | null> => {
+    async (data: {
+      name: string;
+      description?: string;
+      image?: string;
+      visibility?: Visibility;
+      sharedWith?: string[];
+      allowOverride?: boolean;
+    }): Promise<string | null> => {
       if (!user) {
         throw new Error("Must be logged in to create collections");
       }
@@ -185,6 +213,7 @@ export function useCreateCollection() {
       const tags: string[][] = [
         ["d", dTag],
         ["name", data.name],
+        ["visibility", data.visibility || "private"],
       ];
 
       if (data.description) {
@@ -193,6 +222,17 @@ export function useCreateCollection() {
 
       if (data.image) {
         tags.push(["image", data.image]);
+      }
+
+      if (data.allowOverride === false) {
+        tags.push(["allow-override", "false"]);
+      }
+
+      // Add shared-with pubkeys
+      if (data.sharedWith) {
+        data.sharedWith.forEach((pubkey) => {
+          tags.push(["p", pubkey, "", "shared"]);
+        });
       }
 
       const eventData = {
@@ -230,6 +270,9 @@ export function useUpdateCollection() {
         name?: string;
         description?: string;
         image?: string;
+        visibility?: Visibility;
+        sharedWith?: string[];
+        allowOverride?: boolean;
         addSaves?: ParsedSave[];
         removeSaveIds?: string[];
       }
@@ -250,9 +293,14 @@ export function useUpdateCollection() {
         saveIds = [...new Set([...saveIds, ...newIds])];
       }
 
+      const visibility = updates.visibility ?? collection.visibility;
+      const allowOverride = updates.allowOverride ?? collection.allowOverride;
+      const sharedWith = updates.sharedWith ?? collection.sharedWith;
+
       const tags: string[][] = [
         ["d", collection.dTag],
         ["name", updates.name || collection.name],
+        ["visibility", visibility],
       ];
 
       if (updates.description ?? collection.description) {
@@ -261,6 +309,17 @@ export function useUpdateCollection() {
 
       if (updates.image ?? collection.image) {
         tags.push(["image", updates.image ?? collection.image!]);
+      }
+
+      if (!allowOverride) {
+        tags.push(["allow-override", "false"]);
+      }
+
+      // Add shared-with pubkeys
+      if (sharedWith) {
+        sharedWith.forEach((pubkey) => {
+          tags.push(["p", pubkey, "", "shared"]);
+        });
       }
 
       // Add all saves as 'a' tags

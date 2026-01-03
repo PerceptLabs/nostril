@@ -9,6 +9,7 @@ import { Inbox } from "./pages/Inbox";
 import { Collections, CollectionDetail } from "./pages/Collections";
 import { SearchPage } from "./pages/Search";
 import { Graph } from "./pages/Graph";
+import { Settings } from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -27,6 +28,7 @@ export function AppRouter() {
           <Route path="search" element={<SearchPage />} />
           <Route path="search/:query" element={<SearchPage />} />
           <Route path="graph" element={<Graph />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* Redirect common paths */}

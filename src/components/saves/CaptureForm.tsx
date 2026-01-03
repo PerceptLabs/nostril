@@ -26,9 +26,13 @@ import {
   Sparkles,
   ExternalLink,
   RefreshCw,
+  Lock,
+  Users,
 } from "lucide-react";
+import { VisibilitySelector } from "@/components/sync/VisibilitySelector";
 import { cn } from "@/lib/utils";
 import type { ContentType, CaptureData } from "@/lib/nostril";
+import type { Visibility } from "@/lib/storage";
 import { extractMetadata as fetchMetadata, detectContentType, type ExtractedMetadata } from "@/lib/metadata";
 
 const captureSchema = z.object({
@@ -38,6 +42,7 @@ const captureSchema = z.object({
   content: z.string().optional(),
   contentType: z.enum(["link", "image", "pdf", "note"]),
   tags: z.array(z.string()),
+  visibility: z.enum(["private", "shared", "unlisted", "public"]),
 });
 
 type CaptureFormData = z.infer<typeof captureSchema>;
@@ -79,6 +84,7 @@ export function CaptureForm({
       content: "",
       contentType: initialUrl ? detectContentType(initialUrl) : "note",
       tags: [],
+      visibility: "private",
     },
   });
 
@@ -86,6 +92,7 @@ export function CaptureForm({
   const watchedUrl = watch("url");
   const watchedContentType = watch("contentType");
   const watchedTags = watch("tags");
+  const watchedVisibility = watch("visibility");
 
   // Debounced metadata extraction when URL changes
   useEffect(() => {
@@ -199,6 +206,7 @@ export function CaptureForm({
       content: data.content || "",
       tags: data.tags,
       refs: [],
+      visibility: data.visibility,
     });
   });
 
@@ -406,6 +414,21 @@ export function CaptureForm({
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Visibility */}
+          <div className="space-y-2">
+            <Label>Visibility</Label>
+            <VisibilitySelector
+              value={watchedVisibility as Visibility}
+              onChange={(v) => setValue("visibility", v)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {watchedVisibility === "private" && "Only you can see this save"}
+              {watchedVisibility === "shared" && "Share with specific people"}
+              {watchedVisibility === "unlisted" && "Anyone with the link can view"}
+              {watchedVisibility === "public" && "Visible to everyone on Nostr"}
+            </p>
           </div>
 
           {/* Actions */}
