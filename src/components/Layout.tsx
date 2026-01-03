@@ -9,6 +9,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Home,
   Inbox,
   Library,
@@ -20,9 +26,13 @@ import {
   Sparkles,
   Network,
   Settings,
+  RefreshCw,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginArea } from "@/components/auth/LoginArea";
+import { useSync, useSyncStatus } from "@/hooks/useLocalSaves";
 
 const navItems = [
   { path: "/", icon: Home, label: "Home" },
@@ -38,16 +48,48 @@ export function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Sync status
+  const { sync, isSyncing } = useSync();
+  const { data: syncStatus } = useSyncStatus();
+
+  const pendingCount = (syncStatus?.local || 0) + (syncStatus?.syncing || 0);
+  const hasUnsynced = pendingCount > 0;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col border-r bg-muted/30">
-        {/* Logo */}
-        <div className="flex h-16 shrink-0 items-center px-6">
+        {/* Logo + Sync */}
+        <div className="flex h-16 shrink-0 items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">Nostril</span>
           </Link>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => sync()}
+                  disabled={isSyncing}
+                  className="relative"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                  {hasUnsynced && !isSyncing && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-orange-500 border-2 border-background" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {isSyncing
+                  ? "Syncing..."
+                  : hasUnsynced
+                  ? `Sync ${pendingCount} pending`
+                  : "All synced"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         <ScrollArea className="flex-1 px-6 py-4">
@@ -138,7 +180,20 @@ export function Layout() {
             <Sparkles className="h-5 w-5 text-primary" />
             <span className="font-bold">Nostril</span>
           </Link>
-          <div className="flex-1" />
+          <div className="flex-1 flex justify-end">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => sync()}
+              disabled={isSyncing}
+              className="relative"
+            >
+              <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+              {hasUnsynced && !isSyncing && (
+                <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-orange-500 border-2 border-background" />
+              )}
+            </Button>
+          </div>
         </header>
 
         <main>

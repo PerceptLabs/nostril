@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSaveByDTag, useBacklinks, useUpdateSave, useDeleteSave } from "@/hooks/useSaves";
+import { useLocalSave, useLocalBacklinks, useUpdateLocalSave, useDeleteLocalSave } from "@/hooks/useLocalSaves";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
-import { useQueryClient } from "@tanstack/react-query";
 import { NoteEditor } from "@/components/editor/NoteEditor";
 import { ReadingView, ReadingViewSkeleton } from "@/components/ReadingView";
 import { ZapButton } from "@/components/zaps/ZapButton";
@@ -57,7 +56,6 @@ const KNOWN_PATHS = ["home", "inbox", "library", "collections", "search", "setti
 export function Editor() {
   const { dTag } = useParams<{ dTag: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useCurrentUser();
 
@@ -68,11 +66,56 @@ export function Editor() {
     }
   }, [dTag, navigate]);
 
-  const { data: save, isLoading, error } = useSaveByDTag(dTag);
-  const { data: backlinks } = useBacklinks(dTag);
+  // Local-first hooks - instant reads from IndexedDB
+  const { data: localSave, isLoading } = useLocalSave(dTag);
+  const { data: backlinksData } = useLocalBacklinks(dTag);
+  const error = null; // Local queries don't fail
+  const { updateSave, isPending: isSaving } = useUpdateLocalSave();
+  const { deleteSave, isPending: isDeleting } = useDeleteLocalSave();
+
+  // Convert LocalSave to ParsedSave-compatible format for existing UI
+  const save = useMemo((): ParsedSave | null => {
+    if (!localSave) return null;
+    return {
+      id: localSave.id,
+      dTag: localSave.id,
+      url: localSave.url,
+      title: localSave.title,
+      description: localSave.description,
+      image: localSave.image,
+      contentType: localSave.contentType,
+      content: localSave.content,
+      tags: localSave.tags,
+      refs: localSave.refs,
+      publishedAt: new Date(localSave.createdAt),
+      author: {
+        pubkey: user?.pubkey || "",
+        name: undefined,
+        picture: undefined,
+      },
+    };
+  }, [localSave, user]);
+
+  // Convert backlinks to ParsedSave format
+  const backlinks = useMemo((): ParsedSave[] => {
+    if (!backlinksData) return [];
+    return backlinksData.map(b => ({
+      id: b.id,
+      dTag: b.id,
+      url: b.url,
+      title: b.title,
+      description: b.description,
+      image: b.image,
+      contentType: b.contentType,
+      content: b.content,
+      tags: b.tags,
+      refs: b.refs,
+      publishedAt: new Date(b.createdAt),
+      author: { pubkey: user?.pubkey || "", name: undefined, picture: undefined },
+    }));
+  }, [backlinksData, user?.pubkey]);
+
   const author = save?.author;
-  const { updateSave, isPending: isSaving } = useUpdateSave();
-  const { deleteSave, isPending: isDeleting } = useDeleteSave();
 
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [title, setTitle] = useState("");
@@ -81,8 +124,8 @@ export function Editor() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Check if user owns this save
-  const isOwner = user && save && user.pubkey === save.author.pubkey;
+  // Check if user owns this save (all local saves are owned by the current user)
+  const isOwner = user && localSave;
 
   // Initialize form with save data
   useEffect(() => {
@@ -94,23 +137,26 @@ export function Editor() {
   }, [save]);
 
   const handleSave = useCallback(async () => {
-    if (!save) return;
+    if (!localSave) return;
     try {
-      await updateSave(save.dTag, {
-        title,
-        content,
-        contentType,
-        tags: save.tags,
-        refs: save.refs,
-        url: save.url,
-        description: save.description,
-        image: save.image,
+      await updateSave({
+        id: localSave.id,
+        updates: {
+          title,
+          content,
+          contentType,
+          tags: localSave.tags,
+          refs: localSave.refs,
+          url: localSave.url,
+          description: localSave.description,
+          image: localSave.image,
+        },
       });
       toast({
         title: "Saved",
         description: "Your changes have been saved.",
       });
-      queryClient.invalidateQueries({ queryKey: ["save-by-dtag", dTag] });
+      // No need to invalidate - useLiveQuery auto-updates
     } catch (error) {
       toast({
         title: "Failed to save",
@@ -118,12 +164,12 @@ export function Editor() {
         variant: "destructive",
       });
     }
-  }, [save, title, content, contentType, updateSave, toast, queryClient, dTag]);
+  }, [localSave, title, content, contentType, updateSave, toast]);
 
   const handleDelete = useCallback(async () => {
-    if (!save) return;
+    if (!localSave) return;
     try {
-      await deleteSave(save);
+      await deleteSave(localSave.id);
       toast({
         title: "Deleted",
         description: "The save has been deleted.",
@@ -136,11 +182,11 @@ export function Editor() {
         variant: "destructive",
       });
     }
-  }, [save, deleteSave, toast, navigate]);
+  }, [localSave, deleteSave, toast, navigate]);
 
   const handleShare = useCallback(() => {
     if (save) {
-      const url = `${window.location.origin}/${save.dTag}`;
+      const url = `${window.location.origin}/${save.id}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
       toast({

@@ -1,8 +1,14 @@
 import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSaves, useAllTags, useCreateSave, useDeleteSave, useBacklinkCounts } from "@/hooks/useSaves";
+import {
+  useLocalSaves,
+  useLocalTags,
+  useCreateLocalSave,
+  useDeleteLocalSave,
+  useLocalBacklinkCounts,
+  type SaveWithVisibility
+} from "@/hooks/useLocalSaves";
 import { useToast } from "@/hooks/useToast";
-import { useQueryClient } from "@tanstack/react-query";
 import { SaveCard, SaveCardSkeleton } from "@/components/saves/SaveCard";
 import { QuickNote } from "@/components/saves/QuickNote";
 import { CaptureForm } from "@/components/saves/CaptureForm";
@@ -35,7 +41,6 @@ import type { ViewMode, ContentType, CaptureData, ParsedSave } from "@/lib/nostr
 
 export function Library() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [search, setSearch] = useState("");
@@ -45,19 +50,21 @@ export function Library() {
   const [showCaptureForm, setShowCaptureForm] = useState(false);
   const [isQuickCapture, setIsQuickCapture] = useState(false);
 
-  const { data: saves, isLoading, error } = useSaves({
+  // Local-first data hooks - instant reads from IndexedDB
+  const { data: saves, isLoading } = useLocalSaves({
     search,
     tags: selectedTags.length > 0 ? selectedTags : undefined,
     contentType: selectedType !== "all" ? selectedType : undefined,
   });
+  const error = null; // Local queries don't fail
 
-  const { data: allTags } = useAllTags();
-  const { createSave, isPending: isSubmitting } = useCreateSave();
-  const { deleteSave, isPending: isDeleting } = useDeleteSave();
+  const { data: allTags } = useLocalTags();
+  const { createSave, isPending: isSubmitting } = useCreateLocalSave();
+  const { deleteSave, isPending: isDeleting } = useDeleteLocalSave();
 
   // Get backlink counts for all visible saves
-  const dTags = useMemo(() => saves?.map((s) => s.dTag) || [], [saves]);
-  const { data: backlinkCounts } = useBacklinkCounts(dTags);
+  const dTags = useMemo(() => saves?.map((s) => s.id) || [], [saves]);
+  const { data: backlinkCounts } = useLocalBacklinkCounts(dTags);
 
   const handleToggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
@@ -75,12 +82,13 @@ export function Library() {
           tags,
           refs: [],
           title: content.split("\n")[0]?.slice(0, 50) || "Quick note",
+          visibility: "private",
         });
         toast({
           title: "Note saved",
           description: "Your quick note has been saved to the library.",
         });
-        queryClient.invalidateQueries({ queryKey: ["saves"] });
+        // No need to invalidate - useLiveQuery auto-updates
       } catch (error) {
         toast({
           title: "Failed to save",
@@ -89,19 +97,22 @@ export function Library() {
         });
       }
     },
-    [createSave, toast, queryClient]
+    [createSave, toast]
   );
 
   const handleCaptureSubmit = useCallback(
     async (data: CaptureData) => {
       try {
-        await createSave(data);
+        await createSave({
+          ...data,
+          visibility: data.visibility || "private",
+        });
         setShowCaptureForm(false);
         toast({
           title: "Saved!",
           description: data.title || "Content has been saved to your library.",
         });
-        queryClient.invalidateQueries({ queryKey: ["saves"] });
+        // No need to invalidate - useLiveQuery auto-updates
       } catch (error) {
         toast({
           title: "Failed to save",
@@ -110,25 +121,25 @@ export function Library() {
         });
       }
     },
-    [createSave, toast, queryClient]
+    [createSave, toast]
   );
 
   const handleEdit = useCallback(
-    (save: ParsedSave) => {
-      navigate(`/${save.dTag}`);
+    (save: SaveWithVisibility) => {
+      navigate(`/${save.id}`);
     },
     [navigate]
   );
 
   const handleDelete = useCallback(
-    async (save: ParsedSave) => {
+    async (save: SaveWithVisibility) => {
       try {
-        await deleteSave(save);
+        await deleteSave(save.id);
         toast({
           title: "Deleted",
           description: `"${save.title || "Save"}" has been deleted.`,
         });
-        queryClient.invalidateQueries({ queryKey: ["saves"] });
+        // No need to invalidate - useLiveQuery auto-updates
       } catch (error) {
         toast({
           title: "Failed to delete",
@@ -137,11 +148,11 @@ export function Library() {
         });
       }
     },
-    [deleteSave, toast, queryClient]
+    [deleteSave, toast]
   );
 
   const handleShare = useCallback(
-    (save: ParsedSave) => {
+    (save: SaveWithVisibility) => {
       toast({
         title: "Link copied",
         description: "The link has been copied to your clipboard.",
@@ -241,7 +252,7 @@ export function Library() {
                   onClick={() => handleToggleTag(tag.name)}
                 >
                   #{tag.name}
-                  {tag.count && <span className="ml-1 opacity-60">{tag.count}</span>}
+                  {tag.count > 1 && <span className="ml-1 opacity-60">{tag.count}</span>}
                 </Badge>
               ))}
             </div>
@@ -368,7 +379,9 @@ export function Library() {
                 key={save.id}
                 save={save}
                 viewMode={viewMode}
-                backlinkCount={backlinkCounts?.get(save.dTag) || 0}
+                backlinkCount={backlinkCounts?.get(save.id) || 0}
+                syncStatus={save.syncStatus}
+                visibility={save.effectiveVisibility}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onShare={handleShare}

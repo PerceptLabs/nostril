@@ -45,15 +45,29 @@ import { VisibilityIcon } from "@/components/sync/VisibilityBadge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { ParsedSave, ContentType } from "@/lib/nostril";
-import type { SyncStatus, Visibility } from "@/lib/storage";
+import type { SyncStatus, Visibility, LocalSave } from "@/lib/storage";
 import type { NostrEvent } from "@nostrify/nostrify";
+import type { SaveWithVisibility } from "@/hooks/useLocalSaves";
+
+// Base save type that works with both ParsedSave and LocalSave
+type BaseSave = {
+  id: string;
+  url?: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  contentType: ContentType;
+  content: string;
+  tags: string[];
+  refs: string[];
+};
 
 interface SaveCardProps {
-  save: ParsedSave;
+  save: BaseSave & { dTag?: string; publishedAt?: Date; author?: { pubkey: string; name?: string; picture?: string }; createdAt?: number; updatedAt?: number };
   viewMode?: "grid" | "list" | "headlines";
-  onEdit?: (save: ParsedSave) => void;
-  onDelete?: (save: ParsedSave) => void;
-  onShare?: (save: ParsedSave) => void;
+  onEdit?: (save: any) => void;
+  onDelete?: (save: any) => void;
+  onShare?: (save: any) => void;
   backlinkCount?: number;
   syncStatus?: SyncStatus;
   visibility?: Visibility;
@@ -88,6 +102,11 @@ export function SaveCard({
   const [imageError, setImageError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Computed values for compatibility with both ParsedSave and LocalSave
+  const saveId = save.dTag || save.id;
+  const publishedDate = save.publishedAt || (save.createdAt ? new Date(save.createdAt) : new Date());
+  const authorPubkey = save.author?.pubkey || "";
+
   const displayTitle = save.title || save.url || "Untitled";
   const hostname = save.url ? (() => {
     try {
@@ -98,19 +117,19 @@ export function SaveCard({
   })() : null;
   const excerpt = save.description || save.content?.slice(0, 150);
 
-  // Convert ParsedSave to NostrEvent format for ZapButton
+  // Convert to NostrEvent format for ZapButton
   const saveAsEvent = useMemo((): NostrEvent => ({
     id: save.id,
-    pubkey: save.author.pubkey,
-    created_at: Math.floor(save.publishedAt.getTime() / 1000),
+    pubkey: authorPubkey,
+    created_at: Math.floor(publishedDate.getTime() / 1000),
     kind: 30078,
-    tags: [["d", save.dTag]],
+    tags: [["d", saveId]],
     content: save.content,
     sig: "",
-  }), [save]);
+  }), [save.id, authorPubkey, publishedDate, saveId, save.content]);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${save.dTag}`;
+    const url = `${window.location.origin}/${saveId}`;
     navigator.clipboard.writeText(url);
     onShare?.(save);
   };
@@ -137,7 +156,7 @@ export function SaveCard({
         </div>
       )}
       <span className="text-muted-foreground">
-        {formatDistanceToNow(save.publishedAt, { addSuffix: true })}
+        {formatDistanceToNow(publishedDate, { addSuffix: true })}
       </span>
       {backlinkCount > 0 && (
         <span className="text-muted-foreground flex items-center gap-1" title={`${backlinkCount} backlink${backlinkCount !== 1 ? 's' : ''}`}>
@@ -212,7 +231,7 @@ export function SaveCard({
           <CardHeader className="p-4 pb-2">
             <div className="flex items-start justify-between gap-2">
               <Link
-                to={`/${save.dTag}`}
+                to={`/${saveId}`}
                 className="text-lg font-semibold hover:text-primary transition-colors line-clamp-2"
               >
                 {displayTitle}
@@ -261,7 +280,7 @@ export function SaveCard({
           <div className="flex items-start gap-4 p-4">
             {/* Thumbnail */}
             {save.image && !imageError && (
-              <Link to={`/${save.dTag}`} className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-muted">
+              <Link to={`/${saveId}`} className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-muted">
                 <img
                   src={save.image}
                   alt=""
@@ -275,7 +294,7 @@ export function SaveCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <Link
-                  to={`/${save.dTag}`}
+                  to={`/${saveId}`}
                   className="font-medium hover:text-primary transition-colors line-clamp-1"
                 >
                   {displayTitle}
@@ -315,7 +334,7 @@ export function SaveCard({
       <Card className={cn("group overflow-hidden hover:shadow-lg transition-all", className)}>
         {/* Thumbnail */}
         <Link
-          to={`/${save.dTag}`}
+          to={`/${saveId}`}
           className="block aspect-video bg-muted relative overflow-hidden"
         >
           {save.image && !imageError ? (
@@ -359,7 +378,7 @@ export function SaveCard({
         {/* Content */}
         <CardContent className="p-4">
           <Link
-            to={`/${save.dTag}`}
+            to={`/${saveId}`}
             className="font-medium hover:text-primary transition-colors line-clamp-2"
           >
             {displayTitle}
