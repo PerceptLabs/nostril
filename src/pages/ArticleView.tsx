@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { formatSatsToUSD } from "@/lib/paywall";
 
 export function ArticleView() {
   const { dTag } = useParams<{ dTag: string }>();
@@ -204,7 +205,7 @@ export function ArticleView() {
                   <Zap className="h-6 w-6 text-yellow-500" />
                   {article.paywall.price.toLocaleString()} sats
                   <span className="text-sm font-normal text-muted-foreground">
-                    (~${(article.paywall.price * 0.0004).toFixed(2)})
+                    ({formatSatsToUSD(article.paywall.price)})
                   </span>
                 </div>
 

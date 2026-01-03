@@ -145,7 +145,7 @@ export function useAddToBoard() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ boardId, item }: { boardId: string; item: any }) => {
+    mutationFn: async ({ boardId, item }: { boardId: string; item: Omit<BoardItem, 'id' | 'addedAt' | 'addedBy' | 'position'> }) => {
       if (!user) throw new Error('Not logged in');
 
       const board = await db.collections.get(boardId);

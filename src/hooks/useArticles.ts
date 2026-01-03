@@ -16,7 +16,6 @@ import {
   parseArticleEvent,
   type Article,
 } from "@/lib/article";
-import { nanoid } from "nanoid";
 
 export interface ArticleFilter {
   status?: 'draft' | 'scheduled' | 'published';

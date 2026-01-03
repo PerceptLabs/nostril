@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,15 +11,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Lock, Zap, Coins, Loader2 } from 'lucide-react';
+import { Lock, Zap, Coins, Loader2, Copy, Check, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   generatePaywallInvoice,
   processTokenPayment,
+  processLightningPayment,
   formatSatsToUSD,
   type PaymentRequest,
 } from '@/lib/paywall';
+import { useWallet } from '@/hooks/useWallet';
+import { useNWC } from '@/hooks/useNWCContext';
+import { useToast } from '@/hooks/useToast';
 import type { Article } from '@/lib/article';
+import QRCode from 'qrcode';
 
 interface PaywallGateProps {
   article: Article;
@@ -40,11 +45,28 @@ export function PaywallGate({
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'lightning' | 'cashu'>('cashu');
   const [error, setError] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+
+  const { toast } = useToast();
+  const wallet = useWallet();
+  const { sendPayment, getActiveConnection } = useNWC();
 
   const paywall = article.paywall;
   if (!paywall) return null;
 
   const priceUsd = formatSatsToUSD(paywall.price);
+
+  // Generate QR code when invoice is available
+  useEffect(() => {
+    if (paymentRequest?.invoice) {
+      QRCode.toDataURL(paymentRequest.invoice, {
+        width: 256,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+      }).then(setQrCodeUrl);
+    }
+  }, [paymentRequest?.invoice]);
 
   const handleStartPayment = useCallback(async () => {
     try {
@@ -78,6 +100,57 @@ export function PaywallGate({
       setIsProcessing(false);
     }
   }, [paymentRequest, userPubkey, cashuToken, onUnlock]);
+
+  const handleLightningPayment = useCallback(async () => {
+    if (!paymentRequest?.invoice || !userPubkey) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const nwcConnection = getActiveConnection();
+
+      // Try NWC first
+      if (nwcConnection?.isConnected && nwcConnection.connectionString) {
+        const result = await sendPayment(nwcConnection, paymentRequest.invoice);
+        await processLightningPayment(result.preimage, paymentRequest, userPubkey);
+        toast({ title: 'Payment successful!', description: 'Article unlocked' });
+        setShowPayment(false);
+        onUnlock();
+        return;
+      }
+
+      // Try WebLN
+      if (wallet.webln) {
+        await wallet.webln.enable();
+        const result = await wallet.webln.sendPayment(paymentRequest.invoice);
+        await processLightningPayment(result.preimage, paymentRequest, userPubkey);
+        toast({ title: 'Payment successful!', description: 'Article unlocked' });
+        setShowPayment(false);
+        onUnlock();
+        return;
+      }
+
+      // No wallet available
+      setError('No Lightning wallet connected. Scan the QR code or copy the invoice.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [paymentRequest, userPubkey, wallet, sendPayment, getActiveConnection, onUnlock, toast]);
+
+  const handleCopyInvoice = useCallback(() => {
+    if (!paymentRequest?.invoice) return;
+    navigator.clipboard.writeText(paymentRequest.invoice);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [paymentRequest]);
+
+  const openInWallet = useCallback(() => {
+    if (!paymentRequest?.invoice) return;
+    window.open(`lightning:${paymentRequest.invoice}`, '_blank');
+  }, [paymentRequest]);
 
   return (
     <>
@@ -159,11 +232,58 @@ export function PaywallGate({
             </TabsList>
 
             <TabsContent value="lightning" className="space-y-4">
-              <div className="space-y-4 py-4">
-                <p className="text-sm text-muted-foreground text-center">
-                  Lightning payment support coming soon. Use Cashu tokens for now.
-                </p>
-              </div>
+              {paymentRequest?.invoice ? (
+                <div className="space-y-4 py-4">
+                  {/* QR Code */}
+                  {qrCodeUrl && (
+                    <div className="flex justify-center">
+                      <img
+                        src={qrCodeUrl}
+                        alt="Lightning Invoice QR"
+                        className="rounded-lg border"
+                      />
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    {(wallet.hasNWC || wallet.webln) && (
+                      <Button
+                        className="flex-1"
+                        onClick={handleLightningPayment}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Zap className="h-4 w-4 mr-2" />
+                        )}
+                        Pay with Wallet
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={openInWallet}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open
+                    </Button>
+                    <Button variant="outline" onClick={handleCopyInvoice}>
+                      {copied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-destructive text-center">{error}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Generating invoice...</p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="cashu" className="space-y-4">

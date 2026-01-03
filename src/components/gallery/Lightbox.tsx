@@ -68,6 +68,16 @@ export function Lightbox({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, hasPrev, hasNext, onClose]);
 
+  // Prevent background scrolling when lightbox is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   const handleDownload = useCallback(async () => {
     if (!currentItem?.image) return;
     const response = await fetch(currentItem.image);
