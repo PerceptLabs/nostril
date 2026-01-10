@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Sheet,
   SheetContent,
@@ -32,10 +33,13 @@ import {
   FileText,
   Compass,
   Grid3X3,
+  AlertTriangle,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { useSync, useSyncStatus } from "@/hooks/useLocalSaves";
+import { useBilling } from "@/hooks/useBilling";
 
 const navItems = [
   { path: "/", icon: Home, label: "Home" },
@@ -57,6 +61,11 @@ export function Layout() {
   // Sync status
   const { sync, isSyncing } = useSync();
   const { data: syncStatus } = useSyncStatus();
+
+  // Billing status
+  const { settings, runway, hasCdn } = useBilling();
+  const isPaidUser = settings?.plan === 'pro' || settings?.plan === 'paygo';
+  const lowBalance = isPaidUser && runway && runway.days < 7;
 
   const pendingCount = (syncStatus?.local || 0) + (syncStatus?.syncing || 0);
   const hasUnsynced = pendingCount > 0;
@@ -201,6 +210,25 @@ export function Layout() {
             </Button>
           </div>
         </header>
+
+        {/* Low balance warning */}
+        {lowBalance && (
+          <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                Low balance: {runway.days} days remaining.
+                {settings?.plan === 'paygo' && ' Top up to continue using CDN storage.'}
+              </span>
+              <Link to="/settings">
+                <Button variant="outline" size="sm" className="ml-4">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Top Up
+                </Button>
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <main>
           <Outlet />

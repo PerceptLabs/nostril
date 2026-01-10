@@ -3,32 +3,51 @@
  *
  * Handles usage tracking, pricing calculations, and billing operations
  * for CDN storage and bandwidth.
+ *
+ * Tier model:
+ * - FREE: Unlimited local, 100MB Blossom, no CDN, no paywalls
+ * - PAID (pro/paygo): Bunny CDN, signed URLs, paywalls work
  */
 
 import { db, type UsageRecord, type BillingSettings } from '@/lib/storage';
 
 /**
  * Pricing tiers and limits
+ *
+ * Key insight: Paywalls require signed URLs. Blossom URLs are public.
+ * Therefore monetization requires paid tier.
  */
 export const PRICING = {
   free: {
-    storageLimit: 500 * 1024 * 1024,           // 500 MB
-    bandwidthLimit: 5 * 1024 * 1024 * 1024,    // 5 GB/month
+    blossomLimit: 100 * 1024 * 1024,  // 100 MB on Blossom network
+    hasBunny: false,
+    hasPaywalls: false,
+    // Legacy fields for compatibility
+    storageLimit: 100 * 1024 * 1024,
+    bandwidthLimit: Infinity,
     storagePricePerGb: 0,
     bandwidthPricePerGb: 0,
   },
   pro: {
-    monthlyPriceSats: 5000,                    // ~$5
-    storageLimit: 10 * 1024 * 1024 * 1024,     // 10 GB
-    bandwidthLimit: 100 * 1024 * 1024 * 1024,  // 100 GB/month
+    monthlyPriceSats: 5000,                        // ~$5
+    bunnyStorageLimit: 10 * 1024 * 1024 * 1024,    // 10 GB
+    bunnyBandwidthLimit: 100 * 1024 * 1024 * 1024, // 100 GB/month
+    hasBunny: true,
+    hasPaywalls: true,
+    // Legacy fields for compatibility
+    storageLimit: 10 * 1024 * 1024 * 1024,
+    bandwidthLimit: 100 * 1024 * 1024 * 1024,
     storagePricePerGb: 0,
     bandwidthPricePerGb: 0,
   },
   paygo: {
+    storagePricePerGb: 100,   // sats per GB/month (~$0.10)
+    bandwidthPricePerGb: 100, // sats per GB
+    hasBunny: true,
+    hasPaywalls: true,
+    // Legacy fields for compatibility
     storageLimit: Infinity,
     bandwidthLimit: Infinity,
-    storagePricePerGb: 100,   // sats per GB/month (10x markup on $0.01)
-    bandwidthPricePerGb: 100, // sats per GB
   },
 } as const;
 
@@ -397,4 +416,66 @@ export async function canUpload(fileSize: number): Promise<{
   }
 
   return { allowed: true };
+}
+
+// ============================================================================
+// Blossom Usage Tracking (Free Tier)
+// ============================================================================
+
+/**
+ * Get total Blossom storage used
+ */
+export async function getBlossomUsage(): Promise<number> {
+  const uploads = await db.blossomUploads.toArray();
+  return uploads.reduce((sum, u) => sum + u.size, 0);
+}
+
+/**
+ * Record a Blossom upload
+ */
+export async function recordBlossomUpload(
+  hash: string,
+  url: string,
+  size: number
+): Promise<void> {
+  await db.blossomUploads.put({
+    hash,
+    url,
+    size,
+    uploadedAt: Date.now(),
+  });
+}
+
+/**
+ * Check if user can upload to Blossom (free tier limit check)
+ */
+export async function canUploadToBlossom(fileSize: number): Promise<{
+  allowed: boolean;
+  reason?: string;
+}> {
+  const used = await getBlossomUsage();
+  const limit = PRICING.free.blossomLimit;
+
+  if (used + fileSize > limit) {
+    return {
+      allowed: false,
+      reason: `Blossom storage limit reached (${formatBytes(limit)}). Upgrade to Pro for CDN storage.`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Check if plan has CDN (Bunny) access
+ */
+export function hasCdnAccess(plan: PlanType): boolean {
+  return PRICING[plan].hasBunny;
+}
+
+/**
+ * Check if plan has paywall capability
+ */
+export function hasPaywallAccess(plan: PlanType): boolean {
+  return PRICING[plan].hasPaywalls;
 }

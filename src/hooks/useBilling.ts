@@ -17,6 +17,9 @@ import {
   getUsageHistory,
   calculateTotalCost,
   checkPlanLimits,
+  getBlossomUsage,
+  hasCdnAccess,
+  hasPaywallAccess,
   PRICING,
   type PlanType,
 } from "@/lib/billing";
@@ -57,7 +60,7 @@ export function useUsageHistory(months: number = 6) {
 }
 
 /**
- * Hook for total storage used
+ * Hook for total CDN storage used
  */
 export function useStorageUsed() {
   const storage = useLiveQuery(async () => {
@@ -67,6 +70,20 @@ export function useStorageUsed() {
   return {
     data: storage ?? 0,
     isLoading: storage === undefined,
+  };
+}
+
+/**
+ * Hook for Blossom storage used (free tier)
+ */
+export function useBlossomUsage() {
+  const usage = useLiveQuery(async () => {
+    return getBlossomUsage();
+  });
+
+  return {
+    data: usage ?? 0,
+    isLoading: usage === undefined,
   };
 }
 
@@ -138,6 +155,7 @@ export function useBilling() {
   const { data: settings, isLoading: settingsLoading } = useBillingSettings();
   const { data: usage, isLoading: usageLoading } = useCurrentUsage();
   const { data: storageUsed, isLoading: storageLoading } = useStorageUsed();
+  const { data: blossomUsage, isLoading: blossomLoading } = useBlossomUsage();
   const { data: runway } = useBalanceRunway();
 
   const updatePlan = useUpdatePlan();
@@ -155,18 +173,27 @@ export function useBilling() {
     ? checkPlanLimits(usage.storageBytes, usage.bandwidthBytes, plan)
     : { withinLimits: true, storageOk: true, bandwidthOk: true };
 
+  // Plan capabilities
+  const hasCdn = hasCdnAccess(plan);
+  const hasPaywalls = hasPaywallAccess(plan);
+
   return {
     // State
     settings,
     usage,
     storageUsed,
+    blossomUsage,
     runway,
     costs,
     limits,
     pricing,
 
+    // Plan capabilities
+    hasCdn,
+    hasPaywalls,
+
     // Loading states
-    isLoading: settingsLoading || usageLoading || storageLoading,
+    isLoading: settingsLoading || usageLoading || storageLoading || blossomLoading,
 
     // Mutations
     updatePlan: updatePlan.mutate,

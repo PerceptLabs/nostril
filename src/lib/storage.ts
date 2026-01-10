@@ -155,6 +155,14 @@ export interface CdnFile {
   referencedBy: string[];       // Article/board IDs using this file
 }
 
+// Blossom upload tracking (free tier)
+export interface BlossomUpload {
+  hash: string;                 // SHA-256, primary key
+  url: string;                  // Blossom URL
+  size: number;                 // File size in bytes
+  uploadedAt: number;
+}
+
 // Monthly usage tracking for billing
 export interface UsageRecord {
   id: string;                   // YYYY-MM format
@@ -188,6 +196,7 @@ class NostrilDB extends Dexie {
   unlocks!: Table<ArticleUnlock, string>;
   annotations!: Table<LocalAnnotation, string>;
   cdnFiles!: Table<CdnFile, string>;
+  blossomUploads!: Table<BlossomUpload, string>;
   usageRecords!: Table<UsageRecord, string>;
   settings!: Table<{ key: string; value: unknown }, string>;
 
@@ -220,6 +229,19 @@ class NostrilDB extends Dexie {
       unlocks: 'id, articleDTag, articleAuthor, readerPubkey, unlockedAt',
       annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
       cdnFiles: 'hash, uploadedAt, *referencedBy',
+      usageRecords: 'id',
+      settings: 'key'
+    });
+
+    // Version 4: Add Blossom uploads tracking for free tier
+    this.version(4).stores({
+      saves: 'id, syncStatus, *collectionIds, *tags, visibility, updatedAt, contentType',
+      collections: 'id, syncStatus, visibility, updatedAt, layout, pubkey',
+      articles: 'id, status, syncStatus, *tags, publishedAt, updatedAt',
+      unlocks: 'id, articleDTag, articleAuthor, readerPubkey, unlockedAt',
+      annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
+      cdnFiles: 'hash, uploadedAt, *referencedBy',
+      blossomUploads: 'hash, uploadedAt',
       usageRecords: 'id',
       settings: 'key'
     });
@@ -352,6 +374,7 @@ export async function clearLocalData(): Promise<void> {
   await db.unlocks.clear();
   await db.annotations.clear();
   await db.cdnFiles.clear();
+  await db.blossomUploads.clear();
   await db.usageRecords.clear();
 }
 
@@ -365,6 +388,7 @@ export async function exportLocalData(): Promise<{
   unlocks: ArticleUnlock[];
   annotations: LocalAnnotation[];
   cdnFiles: CdnFile[];
+  blossomUploads: BlossomUpload[];
   usageRecords: UsageRecord[];
   settings: SyncSettings;
 }> {
@@ -375,6 +399,7 @@ export async function exportLocalData(): Promise<{
     unlocks: await db.unlocks.toArray(),
     annotations: await db.annotations.toArray(),
     cdnFiles: await db.cdnFiles.toArray(),
+    blossomUploads: await db.blossomUploads.toArray(),
     usageRecords: await db.usageRecords.toArray(),
     settings: await getSyncSettings(),
   };
@@ -390,6 +415,7 @@ export async function importLocalData(data: {
   unlocks?: ArticleUnlock[];
   annotations?: LocalAnnotation[];
   cdnFiles?: CdnFile[];
+  blossomUploads?: BlossomUpload[];
   usageRecords?: UsageRecord[];
 }): Promise<void> {
   if (data.saves) {
@@ -409,6 +435,9 @@ export async function importLocalData(data: {
   }
   if (data.cdnFiles) {
     await db.cdnFiles.bulkPut(data.cdnFiles);
+  }
+  if (data.blossomUploads) {
+    await db.blossomUploads.bulkPut(data.blossomUploads);
   }
   if (data.usageRecords) {
     await db.usageRecords.bulkPut(data.usageRecords);

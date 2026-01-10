@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -19,8 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Zap, Loader2, Send } from 'lucide-react';
+import { Zap, Loader2, Send, Lock } from 'lucide-react';
 import { formatSatsToUSD } from '@/lib/paywall';
+import { useBilling } from '@/hooks/useBilling';
 import type { LocalArticle } from '@/lib/storage';
 
 interface PublishDialogProps {
@@ -46,7 +48,8 @@ export function PublishDialog({
   onPublish,
   isPublishing = false,
 }: PublishDialogProps) {
-  const [paywallEnabled, setPaywallEnabled] = useState(article.paywallEnabled);
+  const { hasPaywalls } = useBilling();
+  const [paywallEnabled, setPaywallEnabled] = useState(article.paywallEnabled && hasPaywalls);
   const [paywallPrice, setPaywallPrice] = useState(article.paywallPrice || 1000);
   const [paywallPreviewLength, setPaywallPreviewLength] = useState(
     article.paywallPreviewLength || 500
@@ -92,14 +95,25 @@ export function PublishDialog({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Enable Paywall</Label>
+                <div className="flex items-center gap-2">
+                  <Label>Enable Paywall</Label>
+                  {!hasPaywalls && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Pro
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Charge readers to access full content
+                  {hasPaywalls
+                    ? 'Charge readers to access full content'
+                    : 'Upgrade to Pro to monetize your articles'}
                 </p>
               </div>
               <Switch
                 checked={paywallEnabled}
                 onCheckedChange={setPaywallEnabled}
+                disabled={!hasPaywalls}
               />
             </div>
 

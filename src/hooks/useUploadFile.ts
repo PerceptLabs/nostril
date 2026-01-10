@@ -2,14 +2,21 @@ import { useMutation } from "@tanstack/react-query";
 import { BlossomUploader } from '@nostrify/nostrify/uploaders';
 
 import { useCurrentUser } from "./useCurrentUser";
+import { useBillingSettings } from "./useBilling";
 import { db, type CdnFile } from "@/lib/storage";
 import {
   uploadFile as bunnyUpload,
   hashFile,
   isBunnyConfigured,
-  getCdnUrl,
 } from "@/services/bunny";
-import { recordUpload, canUpload } from "@/lib/billing";
+import {
+  recordUpload,
+  canUpload,
+  canUploadToBlossom,
+  recordBlossomUpload,
+  hasCdnAccess,
+  PRICING,
+} from "@/lib/billing";
 
 interface UploadResult {
   url: string;
@@ -39,11 +46,11 @@ function getExtension(mimeType: string): string {
 }
 
 /**
- * Hook for uploading files with automatic routing to Bunny CDN or Blossom
+ * Hook for uploading files with plan-based routing
  *
- * Priority:
- * 1. If Bunny CDN is configured, use it (with content addressing and deduplication)
- * 2. Fall back to Blossom servers
+ * Routing logic:
+ * - FREE tier: Blossom only (100 MB limit, public URLs)
+ * - PAID tier (pro/paygo): Bunny CDN (fast, signed URLs for paywalls)
  *
  * Features:
  * - Content-addressed uploads (SHA-256 hash as filename)
@@ -53,6 +60,7 @@ function getExtension(mimeType: string): string {
  */
 export function useUploadFile() {
   const { user } = useCurrentUser();
+  const { data: settings } = useBillingSettings();
 
   return useMutation({
     mutationFn: async (file: File): Promise<UploadResult> => {
@@ -60,12 +68,25 @@ export function useUploadFile() {
         throw new Error('Must be logged in to upload files');
       }
 
-      // Check if Bunny CDN is configured
+      const plan = settings?.plan ?? 'free';
+
+      // Free tier: Blossom only
+      if (plan === 'free' || !hasCdnAccess(plan)) {
+        // Check Blossom limit
+        const { allowed, reason } = await canUploadToBlossom(file.size);
+        if (!allowed) {
+          throw new Error(reason || 'Blossom storage limit reached. Upgrade to continue uploading.');
+        }
+        return uploadToBlossom(file, user);
+      }
+
+      // Paid tier: Use Bunny CDN if configured
       if (isBunnyConfigured()) {
         return uploadToBunny(file);
       }
 
-      // Fall back to Blossom
+      // Bunny not configured, fall back to Blossom (shouldn't happen in production)
+      console.warn('[Upload] Paid tier but Bunny not configured, falling back to Blossom');
       return uploadToBlossom(file, user);
     },
   });
@@ -135,7 +156,7 @@ async function uploadToBunny(file: File): Promise<UploadResult> {
 }
 
 /**
- * Upload file to Blossom servers (fallback)
+ * Upload file to Blossom servers (free tier)
  */
 async function uploadToBlossom(
   file: File,
@@ -156,10 +177,19 @@ async function uploadToBlossom(
   const sizeTag = tags.find(t => t[0] === 'size');
   const mimeTag = tags.find(t => t[0] === 'm');
 
+  const url = urlTag?.[1] || '';
+  const hash = hashTag?.[1] || '';
+  const size = sizeTag ? parseInt(sizeTag[1], 10) : file.size;
+
+  // Record Blossom upload for usage tracking
+  if (hash && url) {
+    await recordBlossomUpload(hash, url, size);
+  }
+
   return {
-    url: urlTag?.[1] || '',
-    hash: hashTag?.[1] || '',
-    size: sizeTag ? parseInt(sizeTag[1], 10) : file.size,
+    url,
+    hash,
+    size,
     mimeType: mimeTag?.[1] || file.type,
     tags,
   };
@@ -170,6 +200,7 @@ async function uploadToBlossom(
  */
 export function useUploadFiles() {
   const { user } = useCurrentUser();
+  const { data: settings } = useBillingSettings();
 
   return useMutation({
     mutationFn: async (files: File[]): Promise<UploadResult[]> => {
@@ -177,10 +208,20 @@ export function useUploadFiles() {
         throw new Error('Must be logged in to upload files');
       }
 
+      const plan = settings?.plan ?? 'free';
+      const useBunny = hasCdnAccess(plan) && isBunnyConfigured();
+
       const results = await Promise.all(
         files.map(async (file) => {
-          if (isBunnyConfigured()) {
+          if (useBunny) {
             return uploadToBunny(file);
+          }
+          // Check Blossom limit for free tier
+          if (plan === 'free') {
+            const { allowed, reason } = await canUploadToBlossom(file.size);
+            if (!allowed) {
+              throw new Error(reason || 'Blossom storage limit reached');
+            }
           }
           return uploadToBlossom(file, user);
         })
