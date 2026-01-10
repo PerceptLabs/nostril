@@ -15,7 +15,8 @@ import { Loader2, Zap, Coins, Copy, ExternalLink } from "lucide-react";
 import { useBilling } from "@/hooks/useBilling";
 import { useWallet } from "@/hooks/useWallet";
 import { useToast } from "@/hooks/useToast";
-import { formatSatsWithUSD } from "@/lib/billing";
+import { formatSatsWithUSD, addToBalance } from "@/lib/billing";
+import { getDecodedToken } from "@cashu/cashu-ts";
 
 interface TopUpDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function TopUpDialog({ open, onOpenChange }: TopUpDialogProps) {
   const [amount, setAmount] = useState<number>(5000);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [cashuToken, setCashuToken] = useState<string>('');
+  const [isProcessingCashu, setIsProcessingCashu] = useState(false);
 
   const handlePresetClick = useCallback((preset: number) => {
     setAmount(preset);
@@ -56,40 +58,39 @@ export function TopUpDialog({ open, onOpenChange }: TopUpDialogProps) {
       return;
     }
 
-    // TODO: Verify and decode Cashu token to get actual amount
-    // For now, use the selected amount
-    // In production:
-    // const decoded = getDecodedToken(cashuToken);
-    // const tokenAmount = decoded.token.reduce((sum, t) =>
-    //   sum + t.proofs.reduce((s, p) => s + p.amount, 0), 0
-    // );
-
+    setIsProcessingCashu(true);
     try {
-      topUp(amount, {
-        onSuccess: (newBalance) => {
-          toast({
-            title: "Balance updated",
-            description: `Added ${amount} sats. New balance: ${newBalance} sats`,
-          });
-          onOpenChange(false);
-          setCashuToken('');
-        },
-        onError: (error) => {
-          toast({
-            title: "Top-up failed",
-            description: (error as Error).message,
-            variant: "destructive",
-          });
-        },
+      // Decode and verify token
+      const decoded = getDecodedToken(cashuToken.trim());
+      const tokenAmount = decoded.token.reduce(
+        (sum, t) => sum + t.proofs.reduce((s, p) => s + p.amount, 0),
+        0
+      );
+
+      if (tokenAmount === 0) {
+        throw new Error("Token has no value");
+      }
+
+      // Add to balance
+      const newBalance = await addToBalance(tokenAmount);
+
+      toast({
+        title: "Balance topped up!",
+        description: `Added ${tokenAmount.toLocaleString()} sats. New balance: ${newBalance.toLocaleString()} sats`,
       });
+
+      setCashuToken("");
+      onOpenChange(false);
     } catch (error) {
       toast({
         title: "Invalid token",
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : "Could not process token",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessingCashu(false);
     }
-  }, [cashuToken, amount, topUp, toast, onOpenChange]);
+  }, [cashuToken, toast, onOpenChange]);
 
   const handleLightningTopUp = useCallback(async () => {
     // TODO: Generate Lightning invoice for the amount
@@ -157,10 +158,10 @@ export function TopUpDialog({ open, onOpenChange }: TopUpDialogProps) {
 
             <Button
               onClick={handleCashuTopUp}
-              disabled={isToppingUp || !cashuToken.trim()}
+              disabled={isProcessingCashu || !cashuToken.trim()}
               className="w-full"
             >
-              {isToppingUp ? (
+              {isProcessingCashu ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Processing...
