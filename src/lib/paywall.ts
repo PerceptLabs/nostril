@@ -1,4 +1,5 @@
 import { db, type ArticleUnlock, type LocalArticle } from '@/lib/storage';
+import { generateSignedUrlAsync, isBunnyConfigured } from '@/services/bunny';
 
 // TODO: Install @cashu/cashu-ts package for production
 // import { CashuMint, CashuWallet, getEncodedToken, getDecodedToken } from '@cashu/cashu-ts';
@@ -388,4 +389,100 @@ export async function getArticleUnlocks(
     .where('articleDTag')
     .equals(articleDTag)
     .toArray();
+}
+
+// ============================================================================
+// CDN Signed URL Functions for Paywalled Content
+// ============================================================================
+
+/**
+ * URL regex to match CDN URLs that need signing
+ */
+const CDN_URL_REGEX = /https?:\/\/[^\/]+\.b-cdn\.net\/([a-f0-9]+\.[a-z0-9]+)/gi;
+
+/**
+ * Generate signed URLs for all CDN assets in content
+ * Used when a reader unlocks paywalled content
+ *
+ * @param content - Article content (markdown/HTML)
+ * @param expiresIn - URL expiration in seconds (default: 1 hour)
+ * @returns Content with signed URLs
+ */
+export async function signContentUrls(
+  content: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  if (!isBunnyConfigured()) {
+    return content;
+  }
+
+  // Find all CDN URLs in the content
+  const matches = [...content.matchAll(CDN_URL_REGEX)];
+
+  if (matches.length === 0) {
+    return content;
+  }
+
+  // Generate signed URLs for each match
+  let signedContent = content;
+
+  for (const match of matches) {
+    const originalUrl = match[0];
+    const path = match[1]; // The hash.ext part
+
+    try {
+      const signedUrl = await generateSignedUrlAsync(path, expiresIn);
+      signedContent = signedContent.replace(originalUrl, signedUrl);
+    } catch (error) {
+      console.warn(`[Paywall] Failed to sign URL: ${originalUrl}`, error);
+    }
+  }
+
+  return signedContent;
+}
+
+/**
+ * Generate a signed URL for a single CDN file
+ *
+ * @param url - Original CDN URL
+ * @param expiresIn - URL expiration in seconds (default: 1 hour)
+ * @returns Signed URL or original if signing fails
+ */
+export async function signSingleUrl(
+  url: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  if (!isBunnyConfigured()) {
+    return url;
+  }
+
+  // Extract path from URL
+  const match = url.match(/https?:\/\/[^\/]+\.b-cdn\.net\/(.+)/);
+  if (!match) {
+    return url;
+  }
+
+  const path = match[1];
+
+  try {
+    return await generateSignedUrlAsync(path, expiresIn);
+  } catch (error) {
+    console.warn(`[Paywall] Failed to sign URL: ${url}`, error);
+    return url;
+  }
+}
+
+/**
+ * Check if URL is from Bunny CDN
+ */
+export function isBunnyCdnUrl(url: string): boolean {
+  return url.includes('.b-cdn.net/');
+}
+
+/**
+ * Extract hash from CDN URL
+ */
+export function extractHashFromUrl(url: string): string | null {
+  const match = url.match(/https?:\/\/[^\/]+\.b-cdn\.net\/([a-f0-9]+)\.[a-z0-9]+/);
+  return match ? match[1] : null;
 }

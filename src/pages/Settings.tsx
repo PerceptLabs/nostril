@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,9 +43,11 @@ import {
   Database,
   Settings as SettingsIcon,
   ArrowLeft,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SyncStatusIndicator } from "@/components/sync";
+import { BillingDashboard } from "@/components/billing";
 
 export function Settings() {
   const navigate = useNavigate();
@@ -187,12 +190,29 @@ export function Settings() {
             Settings
           </h1>
           <p className="text-muted-foreground">
-            Manage storage, sync, and privacy settings
+            Manage storage, sync, billing, and privacy settings
           </p>
         </div>
       </div>
 
-      {/* Sync Status */}
+      <Tabs defaultValue="sync" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="sync" className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" />
+            <span className="hidden sm:inline">Sync</span>
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Billing</span>
+          </TabsTrigger>
+          <TabsTrigger value="data" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            <span className="hidden sm:inline">Data</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sync" className="space-y-6">
+          {/* Sync Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -379,73 +399,81 @@ export function Settings() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Data Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Management</CardTitle>
-          <CardDescription>
-            Export, import, or clear your local data
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={isExporting}
-              className="flex-1"
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              Export Data
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleImport}
-              disabled={isImporting}
-              className="flex-1"
-            >
-              {isImporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-2" />
-              )}
-              Import Data
-            </Button>
-          </div>
+        <TabsContent value="billing" className="space-y-6">
+          <BillingDashboard />
+        </TabsContent>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="w-full">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear All Local Data
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear all local data?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all saves, collections, and settings
-                  from this device. Data synced to relays will not be affected.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleClearData}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        <TabsContent value="data" className="space-y-6">
+          {/* Data Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Management</CardTitle>
+              <CardDescription>
+                Export, import, or clear your local data
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="flex-1"
                 >
-                  Clear Data
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Export Data
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleImport}
+                  disabled={isImporting}
+                  className="flex-1"
+                >
+                  {isImporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Import Data
+                </Button>
+              </div>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All Local Data
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear all local data?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all saves, collections, and settings
+                      from this device. Data synced to relays will not be affected.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleClearData}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Clear Data
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

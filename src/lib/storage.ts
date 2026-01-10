@@ -4,6 +4,7 @@ export type Visibility = 'private' | 'shared' | 'unlisted' | 'public';
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'conflict' | 'published';
 export type ArticleStatus = 'draft' | 'scheduled' | 'published';
 export type CollectionLayout = 'list' | 'grid' | 'masonry' | 'gallery';
+export type PlanType = 'free' | 'pro' | 'paygo';
 
 export interface LocalSave {
   id: string;           // d-tag
@@ -144,6 +145,35 @@ export interface ArticleUnlock {
   amountPaid: number;
 }
 
+// CDN file tracking for Bunny storage
+export interface CdnFile {
+  hash: string;                 // SHA-256, primary key
+  url: string;                  // CDN URL
+  size: number;                 // File size in bytes
+  mimeType: string;
+  uploadedAt: number;
+  referencedBy: string[];       // Article/board IDs using this file
+}
+
+// Monthly usage tracking for billing
+export interface UsageRecord {
+  id: string;                   // YYYY-MM format
+  storageBytes: number;
+  bandwidthBytes: number;
+  storageCost: number;          // In sats
+  bandwidthCost: number;        // In sats
+  paidAt?: number;
+  paymentProof?: string;
+}
+
+// User billing settings
+export interface BillingSettings {
+  plan: PlanType;
+  satBalance: number;
+  lastTopUp?: number;
+  autoPayFromEarnings: boolean;
+}
+
 export interface SyncSettings {
   localStorageEnabled: boolean;   // default: true
   relaySyncEnabled: boolean;      // default: true
@@ -157,6 +187,8 @@ class NostrilDB extends Dexie {
   articles!: Table<LocalArticle, string>;
   unlocks!: Table<ArticleUnlock, string>;
   annotations!: Table<LocalAnnotation, string>;
+  cdnFiles!: Table<CdnFile, string>;
+  usageRecords!: Table<UsageRecord, string>;
   settings!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
@@ -177,6 +209,18 @@ class NostrilDB extends Dexie {
       articles: 'id, status, syncStatus, *tags, publishedAt, updatedAt',
       unlocks: 'id, articleDTag, articleAuthor, readerPubkey, unlockedAt',
       annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
+      settings: 'key'
+    });
+
+    // Version 3: Add CDN files and usage tracking for Bunny integration
+    this.version(3).stores({
+      saves: 'id, syncStatus, *collectionIds, *tags, visibility, updatedAt, contentType',
+      collections: 'id, syncStatus, visibility, updatedAt, layout, pubkey',
+      articles: 'id, status, syncStatus, *tags, publishedAt, updatedAt',
+      unlocks: 'id, articleDTag, articleAuthor, readerPubkey, unlockedAt',
+      annotations: 'id, saveId, saveDTag, syncStatus, updatedAt',
+      cdnFiles: 'hash, uploadedAt, *referencedBy',
+      usageRecords: 'id',
       settings: 'key'
     });
   }
@@ -307,6 +351,8 @@ export async function clearLocalData(): Promise<void> {
   await db.articles.clear();
   await db.unlocks.clear();
   await db.annotations.clear();
+  await db.cdnFiles.clear();
+  await db.usageRecords.clear();
 }
 
 /**
@@ -318,6 +364,8 @@ export async function exportLocalData(): Promise<{
   articles: LocalArticle[];
   unlocks: ArticleUnlock[];
   annotations: LocalAnnotation[];
+  cdnFiles: CdnFile[];
+  usageRecords: UsageRecord[];
   settings: SyncSettings;
 }> {
   return {
@@ -326,6 +374,8 @@ export async function exportLocalData(): Promise<{
     articles: await db.articles.toArray(),
     unlocks: await db.unlocks.toArray(),
     annotations: await db.annotations.toArray(),
+    cdnFiles: await db.cdnFiles.toArray(),
+    usageRecords: await db.usageRecords.toArray(),
     settings: await getSyncSettings(),
   };
 }
@@ -339,6 +389,8 @@ export async function importLocalData(data: {
   articles?: LocalArticle[];
   unlocks?: ArticleUnlock[];
   annotations?: LocalAnnotation[];
+  cdnFiles?: CdnFile[];
+  usageRecords?: UsageRecord[];
 }): Promise<void> {
   if (data.saves) {
     await db.saves.bulkPut(data.saves);
@@ -354,5 +406,11 @@ export async function importLocalData(data: {
   }
   if (data.annotations) {
     await db.annotations.bulkPut(data.annotations);
+  }
+  if (data.cdnFiles) {
+    await db.cdnFiles.bulkPut(data.cdnFiles);
+  }
+  if (data.usageRecords) {
+    await db.usageRecords.bulkPut(data.usageRecords);
   }
 }

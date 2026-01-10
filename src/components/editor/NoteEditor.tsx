@@ -100,12 +100,10 @@ export function NoteEditor({
           description: `Uploading ${file.name}`,
         });
 
-        const tags = await uploadFile(file);
+        const result = await uploadFile(file);
 
-        // Find the URL from the tags
-        const urlTag = tags.find((t) => t[0] === "url");
-        if (urlTag) {
-          const imageMarkdown = `![${file.name}](${urlTag[1]})`;
+        if (result.url) {
+          const imageMarkdown = `![${file.name}](${result.url})`;
           handleTemplateInsert(imageMarkdown);
           toast({
             title: "Uploaded",
